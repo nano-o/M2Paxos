@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>DistributedMultiPaxos</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>toolbox.builder.TLAParserBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>toolbox.builder.PCalAlgorithmSearchingBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>toolbox.natures.TLANature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>DistributedMultiPaxos.tla</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/DistributedMultiPaxos.tla</locationURI>
+		</link>
+		<link>
+			<name>MultiConsensus.tla</name>
+			<type>1</type>
+			<location>/home/nano/Documents/M2Paxos/MultiConsensus.tla</location>
+		</link>
+		<link>
+			<name>MultiPaxos.tla</name>
+			<type>1</type>
+			<location>/home/nano/Documents/M2Paxos/MultiPaxos.tla</location>
+		</link>
+	</linkedResources>
+</projectDescription>
