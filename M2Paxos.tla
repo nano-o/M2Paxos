@@ -5,7 +5,9 @@
 (* several MultiPaxos instances (one per object).                          *)
 (***************************************************************************)
 
-EXTENDS MultiConsensus
+EXTENDS MultiConsensus, Sequences, TLC
+
+ASSUME Instances \subseteq Nat \ {0}
 
 CONSTANTS Commands, AccessedBy(_), Objects
 
@@ -55,7 +57,7 @@ NextInstance(o) ==
     LET completed == {i \in Instances : Complete(o, i)}
     IN  IF completed # {}
         THEN Max(completed, <=) + 1
-        ELSE 0
+        ELSE Max(Instances, \geq) \* the minimum instance
 
 (***************************************************************************)
 (* The next-state relation:                                                *)
@@ -106,7 +108,7 @@ Vote2(c, a) ==
     /\  votes' = [o \in Objects |->
             IF o \in AccessedBy(c)
             THEN [votes[o] EXCEPT ![a] = [@ EXCEPT ![NextInstance(o)] = 
-                IF ballots[o][a] # -1 
+                IF ballots[o][a] # -1
                 THEN [@ EXCEPT ![ballots[o][a]] = c]
                 ELSE @]]
             ELSE votes[o]]
@@ -129,10 +131,53 @@ Next2 ==
     \/  \E c \in V : Propose(c)
 
 (***************************************************************************)
-(* True when c1 has been chosen before c2 in the MultiPaxos instance       *)
-(* associated to object o.                                                 *)
+(* Removing duplicates from a seqence                                      *)
+(***************************************************************************)   
+RECURSIVE RemDupRec(_,_)
+ RemDupRec(es, seen) ==
+   IF es = <<>>
+   THEN <<>>
+   ELSE
+     IF es[1] \in seen
+     THEN RemDupRec(Tail(es), seen)
+     ELSE <<es[1]>> \o RemDupRec(Tail(es), seen \cup {es[1]})
+     
+ RemDup(es) == RemDupRec(es, {})
+ 
 (***************************************************************************)
+(* For each objec, the sequence of commands chosen with duplicates         *)
+(* removed.                                                                *)
+(***************************************************************************)
+ChosenCmds == [o \in Objects |->
+    LET s == [i \in Instances |-> 
+                IF \E c \in propCmds : MultiPaxos(o)!Chosen(i, c)
+                THEN CHOOSE c \in propCmds : MultiPaxos(o)!Chosen(i, c)
+                ELSE None]
+    IN RemDup(s)]   \* This works because there can be no gaps: 
+                    \* after the first None elements, all elements are None.
+                     
+Image(f) == {f[x] : x \in DOMAIN f}
+
 ChosenInOrder(c1, c2, o) ==
+    LET s == ChosenCmds[o]
+    IN
+        /\  {c1,c2} \subseteq Image(s)
+        /\  \A i,j \in DOMAIN s :
+                s[i] = c1 /\ s[j] = c2 => i \leq j
+            
+Correctness ==  \A c1,c2 \in Commands : 
+    \A o1,o2 \in AccessedBy(c1) \cap AccessedBy(c2) :
+        (\A o \in {o1,o2} : 
+            c1 \in Image(ChosenCmds[o]) /\ c2 \in Image(ChosenCmds[o]))
+        =>  (ChosenInOrder(c1, c2, o1) = ChosenInOrder(c1, c2, o2))
+        
+
+(***************************************************************************)
+(* True when c1 has been chosen before c2 in the MultiPaxos instance       *)
+(* associated to object o.  This definition works only when there are no   *)
+(* duplicate chosen commands, but this cannot be avoided.                  *)
+(***************************************************************************)
+ChosenInOrder2(c1, c2, o) ==
     \A i,j \in Instances : 
         MultiPaxos(o)!Chosen(i, c1) /\ MultiPaxos(o)!Chosen(j, c2)
         => i <= j
@@ -140,13 +185,14 @@ ChosenInOrder(c1, c2, o) ==
 (***************************************************************************)
 (* The correctness property: any two commands are ordered in the same way  *)
 (* by the MultiPaxos instances corresponding to objects that both commands *)
-(* access.                                                                 *)
+(* access.  But again, this works only if no duplicate commands can be     *)
+(* chosen, and it is not possible to avoid it.                             *)
 (***************************************************************************)
-Correctness ==
+CorrectnessSimple ==
     \A c1,c2 \in Commands : \A o1,o2 \in AccessedBy(c1) \cap AccessedBy(c2) :
         ChosenInOrder(c1, c2, o1) = ChosenInOrder(c1, c2, o2)
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Nov 15 18:48:48 EST 2015 by nano
+\* Last modified Sun Nov 15 19:40:39 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano
