@@ -117,7 +117,7 @@ Vote2(c, a) ==
     /\  \A o \in AccessedBy(c) : \E i \in Instances :
             MultiPaxos(o)!Vote(a, c, i)
     \* and c has not been chosen before (just because it is a simple way to avoid duplicated commands):
-    /\  \A i \in Instances : \A o \in Objects : \neg MultiPaxos(o)!Chosen(i, c)
+    \* /\  \A i \in Instances : \A o \in Objects : \neg MultiPaxos(o)!Chosen(i, c)
 
 
 (***************************************************************************)
@@ -178,9 +178,10 @@ Correctness ==  \A c1,c2 \in Commands :
 (* duplicate chosen commands, but this cannot be avoided.                  *)
 (***************************************************************************)
 ChosenInOrder2(c1, c2, o) ==
-    \A i,j \in Instances : 
-        MultiPaxos(o)!Chosen(i, c1) /\ MultiPaxos(o)!Chosen(j, c2)
-        => i <= j
+    \E i,j \in Instances : 
+        /\  MultiPaxos(o)!Chosen(i, c1) 
+        /\  MultiPaxos(o)!Chosen(j, c2)
+        /\  i <= j
 
 (***************************************************************************)
 (* The correctness property: any two commands are ordered in the same way  *)
@@ -190,9 +191,9 @@ ChosenInOrder2(c1, c2, o) ==
 (***************************************************************************)
 CorrectnessSimple ==
     \A c1,c2 \in Commands : \A o1,o2 \in AccessedBy(c1) \cap AccessedBy(c2) :
-        ChosenInOrder(c1, c2, o1) = ChosenInOrder(c1, c2, o2)
+        ChosenInOrder(c1, c2, o1) => ChosenInOrder(c1, c2, o2)
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Nov 15 19:40:39 EST 2015 by nano
+\* Last modified Sun Nov 15 19:55:40 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano
