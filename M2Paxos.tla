@@ -5,18 +5,11 @@
 (* several MultiPaxos instances (one per object).                          *)
 (***************************************************************************)
 
-EXTENDS MultiConsensus, Sequences, TLC
+EXTENDS MultiConsensus, Sequences, TLC, Objects
 
 ASSUME Instances \subseteq Nat \ {0}
 
-CONSTANTS Commands, AccessedBy(_), Objects
-
 ASSUME Commands = V
-
-(***************************************************************************)
-(* AccessedBy(c) is the set of objects accessed by c.                      *)
-(***************************************************************************)
-ASSUME \A c \in Commands : AccessedBy(c) \in SUBSET Objects
 
 (***************************************************************************)
 (* ballot and vote are functions from object to "ballot" and "vote"        *)
@@ -201,5 +194,5 @@ CorrectnessSimple ==
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Nov 15 20:04:22 EST 2015 by nano
+\* Last modified Wed Nov 18 23:03:48 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano

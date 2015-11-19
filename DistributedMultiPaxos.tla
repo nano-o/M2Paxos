@@ -17,11 +17,6 @@ VARIABLES
     ballot, vote, network, propCmds
 
 (***************************************************************************)
-(* Each ballot has a leader                                                *)
-(***************************************************************************)
-Leader(b) == CHOOSE f \in [Ballots -> Acceptors] : TRUE
-
-(***************************************************************************)
 (* We do not model learners, so no need for 2b messages                    *)
 (***************************************************************************)
 Msgs == 
@@ -37,7 +32,6 @@ Init ==
                 [b \in Ballots |-> None]]]
     /\  network = {}
     /\  propCmds = {}
-(*    /\  1bInfo = [b \in Ballots |-> [i \in Instances |-> None]]*)
 
 TypeInv ==
     /\  ballot \in [Acceptors -> {-1} \cup Ballots]
@@ -46,7 +40,6 @@ TypeInv ==
                 [Ballots -> {None} \cup V]]]
     /\  network \subseteq Msgs
     /\  propCmds \subseteq V
-(*    /\  1bInfo = [Ballots -> [Instances -> V \cup {None}]]*)
 
 Propose(c) ==
     /\  propCmds' = propCmds \cup {c}
@@ -57,7 +50,7 @@ Phase1a(b) ==
     /\  UNCHANGED <<ballot, vote, propCmds>>
 
 (***************************************************************************)
-(* A pair consisting of the highest ballot in which the acceptro a has     *)
+(* A pair consisting of the highest ballot in which the acceptor a has     *)
 (* voted in instance i.  If a has not voted in instance i, then <<-1,      *)
 (* None>>.                                                                 *)
 (***************************************************************************)
@@ -96,13 +89,14 @@ MaxVote(b, i, Q) ==
 (* safe value (i.e.  when it receives 1b messages from a quorum), and only *)
 (* if it has not done so before.                                           *)
 (***************************************************************************)    
-Phase2a(b, i) ==
+Phase2a(b, i, v) ==
     /\ \neg (\E m \in network : m[1] = "2a" /\ m[2] = i /\ m[3] = b)
     /\ \E Q \in Quorums :
         /\  \A a \in Q : \E m \in 1bMsgs(b, i, Q) : m[2] = a
-        /\  LET  maxV == MaxVote(b, i , Q)
-                 safe == IF maxV # None THEN {maxV} ELSE propCmds
-            IN  \E v \in safe : network' = network \cup {<<"2a", i, b, v>>}
+        /\  LET maxV == MaxVote(b, i , Q)
+                safe == IF maxV # None THEN {maxV} ELSE propCmds
+            IN  /\  v \in safe 
+                /\  network' = network \cup {<<"2a", i, b, v>>}
     /\  UNCHANGED <<propCmds, ballot, vote>>
 
 Vote(a, b, i) ==
@@ -117,7 +111,7 @@ Next ==
     \/  \E c \in V : Propose(c)
     \/  \E b \in Ballots : Phase1a(b)
     \/  \E a \in Acceptors, b \in Ballots, v \in V : Phase1b(a, b, v)
-    \/  \E b \in Ballots, i \in Instances : Phase2a(b, i)
+    \/  \E b \in Ballots, i \in Instances, v \in V : Phase2a(b, i, v)
     \/  \E a \in Acceptors, b \in Ballots, i \in Instances : Vote(a, b, i)
     
 Spec == Init /\ [][Next]_<<propCmds, ballot, vote, network>>
@@ -128,5 +122,5 @@ THEOREM Spec => MultiPaxos!Spec
 
 =============================================================================
 \* Modification History
-\* Last modified Sat Nov 14 17:53:17 EST 2015 by nano
+\* Last modified Wed Nov 18 23:58:35 EST 2015 by nano
 \* Created Fri Nov 13 17:59:21 EST 2015 by nano
