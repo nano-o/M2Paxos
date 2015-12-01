@@ -195,9 +195,11 @@ Correctness ==
         Chosen(i, v1) /\ Chosen(i, v2) => v1 = v2
 
 Spec == Init /\ [][Next]_<<ballot,vote,propCmds>>
+
+THEOREM Spec => []Correctness
         
 
 =============================================================================
 \* Modification History
-\* Last modified Sun Nov 15 18:36:03 EST 2015 by nano
+\* Last modified Tue Dec 01 11:42:02 EST 2015 by nano
 \* Created Mon Nov 02 09:08:37 EST 2015 by nano

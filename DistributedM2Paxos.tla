@@ -1,7 +1,7 @@
 ------------------------- MODULE DistributedM2Paxos -------------------------
 
 (***************************************************************************)
-(* A spec of M2Paxos based on DistributedMultiPaxos                        *)
+(* A spec of M2Paxos based on DistributedMultiPaxos.                       *)
 (***************************************************************************)
 
 EXTENDS MultiConsensus, Objects
@@ -35,6 +35,9 @@ NextInstance(o) ==
 
 Msgs == DistMultiPaxos(CHOOSE o \in Objects : TRUE)!Msgs
 
+(***************************************************************************)
+(* A type invariant.                                                       *)
+(***************************************************************************)
 TypeInv ==
     /\  ballots \in [Objects -> [Acceptors -> {-1} \cup Ballots]]
     /\  votes \in [Objects -> [Acceptors -> 
@@ -46,12 +49,19 @@ TypeInv ==
 InitBallot == [a \in Acceptors |-> -1]
 InitVote == [a \in Acceptors |-> [i \in Instances |-> [b \in Ballots |-> None]]]
 
+(***************************************************************************)
+(* The initial state.                                                      *)
+(***************************************************************************)
 Init ==
     /\  ballots = [o \in Objects |-> InitBallot]
     /\  votes = [o \in Objects |-> InitVote]
     /\  propCmds = {}
     /\  network = [o \in Objects |-> {}]
 
+
+(***************************************************************************)
+(* The actions.                                                            *)
+(***************************************************************************)
 
 Propose(c) ==
     /\  propCmds' = propCmds \cup {c}
@@ -71,12 +81,14 @@ Phase1b(a, c) ==
     /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<ballots[o], votes[o], network[o]>>
 
 (***************************************************************************)
-(* Here we must assume that there are no duplicate commands, otherwise it  *)
-(* will break.                                                             *)
+(* The Phase2a(c) action.                                                  *)
+(*                                                                         *)
+(* NextInstance could be computed from the 1b messages.  For simplicity,   *)
+(* we reuse the NextInstance(_) operator.                                  *)
 (***************************************************************************)
 Phase2a(c) ==
-    /\  \A o \in AccessedBy(c) : \E b \in Ballots, i \in Instances :
-            DistMultiPaxos(o)!Phase2a(b, i, c)
+    /\  \A o \in AccessedBy(c) : \E b \in Ballots :
+            DistMultiPaxos(o)!Phase2a(b, NextInstance(o), c)
     /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<network[o]>>
     /\  UNCHANGED <<propCmds, ballots, votes>>
 
@@ -92,15 +104,16 @@ Next ==
 
 Spec == Init /\ [][Next]_<<ballots, votes, network, propCmds>>
 
-(***************************************************************************)
-(* We can't reuse DistMultiPaxos with TLC, so we need to reimplement       *)
-(* everything...                                                           *)
-(***************************************************************************)
+M2Paxos == INSTANCE M2Paxos
+
+THEOREM Spec => []M2Paxos!Correctness 
 
 (***************************************************************************)
-(* This would be easier to write if all 1a messages were combined in the   *)
-(* same message.                                                           *)
+(* The spec above cannot be used with TLC.  Below is a second version of   *)
+(* the spec, which should be equivalent to the one above, and which can be *)
+(* model-checked with TLC.                                                 *)
 (***************************************************************************)
+
 Phase1b2(a, c) == 
     /\  \A o \in AccessedBy(c) : \E b \in Ballots :
             /\  ballots[o][a] < b
@@ -122,27 +135,27 @@ Phase1b2(a, c) ==
             \A o \in AccessedBy(c) : DistMultiPaxos(o)!Phase1b(a, b, c) 
 
 Phase2a2(c) ==
-    LET OkForObj(o, i, b, Q) ==
-        /\  \neg (\E m \in network[o] : m[1] = "2a" /\ m[2] = i /\ m[3] = b)
-        /\ \A a \in Q : \E m \in DistMultiPaxos(o)!1bMsgs(b, i, Q) : m[2] = a
+    LET OkForObj(o, b, Q) ==
+        /\  \neg (\E m \in network[o] : m[1] = "2a" /\ m[2] = NextInstance(o) /\ m[3] = b)
+        /\ \A a \in Q : \E m \in DistMultiPaxos(o)!1bMsgs(b, NextInstance(o), Q) : m[2] = a
     IN
         /\  propCmds # {}
-        /\ \A o \in AccessedBy(c) : \E i \in Instances, b \in Ballots, Q \in Quorums : OkForObj(o, i, b, Q)
-        /\  LET qs == [o \in AccessedBy(c) |->  CHOOSE q \in Instances \times Ballots \times Quorums :
-                            OkForObj(o, q[1], q[2], q[3])] 
+        /\ \A o \in AccessedBy(c) : \E b \in Ballots, Q \in Quorums : OkForObj(o, b, Q)
+        /\  LET qs == [o \in AccessedBy(c) |->  CHOOSE q \in Ballots \times Quorums :
+                            OkForObj(o, q[1], q[2])] 
                 safe == [o \in AccessedBy(c) |->
-                    LET maxV == DistMultiPaxos(o)!MaxVote(qs[o][2], qs[o][1] , qs[o][3])
+                    LET maxV == DistMultiPaxos(o)!MaxVote(qs[o][1], NextInstance(o) , qs[o][2])
                     IN  IF maxV # None THEN {maxV} ELSE propCmds]
             IN network' = [o \in Objects |->
                 IF o \in AccessedBy(c)
                 THEN
                     IF c \in safe[o]
-                    THEN network[o] \cup {<<"2a", qs[o][1], qs[o][2], c>>}
-                    ELSE network[o] \cup {<<"2a", qs[o][1], qs[o][2], CHOOSE v \in safe[o] : TRUE>>}
+                    THEN network[o] \cup {<<"2a", NextInstance(o), qs[o][1], c>>}
+                    ELSE network[o] \cup {<<"2a", NextInstance(o), qs[o][1], CHOOSE v \in safe[o] : TRUE>>}
                 ELSE network[o]]
     /\  UNCHANGED <<propCmds, ballots, votes>>
-    /\ \A o \in AccessedBy(c) : \E b \in Ballots, i \in Instances : 
-            DistMultiPaxos(o)!Phase2a(b,i,c) 
+    /\ \A o \in AccessedBy(c) : \E b \in Ballots : 
+            DistMultiPaxos(o)!Phase2a(b,NextInstance(o),c) 
 
 Vote2(a, c) ==
     /\  \A o \in AccessedBy(c) : \E i \in Instances :
@@ -162,8 +175,22 @@ Next2 ==
         \/  \E a \in Acceptors :  Phase1b2(a, c) \/ Vote2(a, c)
 
 Spec2 == Init /\ [][Next2]_<<ballots, votes, network, propCmds>>
-       
+
+(***************************************************************************)
+(* Model-checking results:                                                 *)
+(*                                                                         *)
+(* Configuration: 2 objects, 2 commands (one accessing both objects, one   *)
+(* accessing only one object), 3 acceptors, majority quorums, 2 ballots, 2 *)
+(* instances per object.                                                   *)
+(*                                                                         *)
+(* Checked the property M2Paxos!Correctness                                *)
+(*                                                                         *)
+(* Exhaustive exploration completed: 243636 distinct states generated,     *)
+(* diameter 23, ran for 10 minutes.                                        *)
+(*                                                                         *)
+(***************************************************************************)
+   
 =============================================================================
 \* Modification History
-\* Last modified Thu Nov 19 10:43:44 EST 2015 by nano
+\* Last modified Tue Dec 01 11:40:20 EST 2015 by nano
 \* Created Wed Nov 18 18:34:22 EST 2015 by nano

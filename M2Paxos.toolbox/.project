@@ -35,5 +35,10 @@
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/MultiPaxos.tla</locationURI>
 		</link>
+		<link>
+			<name>Objects.tla</name>
+			<type>1</type>
+			<location>/home/nano/Documents/M2Paxos/Objects.tla</location>
+		</link>
 	</linkedResources>
 </projectDescription>

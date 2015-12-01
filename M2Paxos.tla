@@ -176,7 +176,8 @@ Correctness ==  \A c1,c2 \in Commands :
         (\A o \in {o1,o2} : 
             c1 \in Image(ChosenCmds[o]) /\ c2 \in Image(ChosenCmds[o]))
         =>  (ChosenInOrder(c1, c2, o1) = ChosenInOrder(c1, c2, o2))
-        
+
+THEOREM Spec => []Correctness
 
 (***************************************************************************)
 (* The spec above cannot be used with TLC.  Below is a second version of   *)
@@ -228,12 +229,13 @@ Next2 ==
 (*                                                                         *)
 (* Running on 48 cores on whitewhale with 120GB of memory.                 *)
 (*                                                                         *)
-(* 674414109 states generated, 48486426 distinct states found.  The depth  *)
-(* of the complete state graph search is 31.                               *)
+(* Exhaustive exploration completed: 674414109 states generated, 48486426  *)
+(* distinct states found.  The depth of the complete state graph search is *)
+(* 31.                                                                     *)
 (*                                                                         *)
 (***************************************************************************)
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Dec 01 11:27:17 EST 2015 by nano
+\* Last modified Tue Dec 01 11:40:04 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano

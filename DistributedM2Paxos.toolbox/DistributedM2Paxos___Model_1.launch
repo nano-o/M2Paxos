@@ -18,14 +18,17 @@
 <stringAttribute key="modelBehaviorNext" value=""/>
 <stringAttribute key="modelBehaviorSpec" value="Spec2"/>
 <intAttribute key="modelBehaviorSpecType" value="1"/>
-<stringAttribute key="modelBehaviorVars" value="propCmds, network, ballots, votes"/>
+<stringAttribute key="modelBehaviorVars" value="votes, propCmds, ballots, network"/>
 <booleanAttribute key="modelCorrectnessCheckDeadlock" value="false"/>
 <listAttribute key="modelCorrectnessInvariants">
-<listEntry value="1\neg (Complete(o1, 1) /\ Complete(o1,2))"/>
+<listEntry value="0\neg (Complete(o1, 1) /\ Complete(o1,2))"/>
 <listEntry value="0\neg (DistMultiPaxos(o1)!MultiPaxos!ChosenAt(1, 1, c1) /\ votes[o1][a1][1][0] = c2)"/>
 <listEntry value="0TypeInv"/>
+<listEntry value="1M2Paxos!Correctness"/>
 </listAttribute>
-<listAttribute key="modelCorrectnessProperties"/>
+<listAttribute key="modelCorrectnessProperties">
+<listEntry value="0M2Paxos!Spec"/>
+</listAttribute>
 <stringAttribute key="modelExpressionEval" value=""/>
 <stringAttribute key="modelParameterActionConstraint" value=""/>
 <listAttribute key="modelParameterConstants">
