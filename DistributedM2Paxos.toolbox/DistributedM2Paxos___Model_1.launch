@@ -24,10 +24,10 @@
 <listEntry value="0\neg (Complete(o1, 1) /\ Complete(o1,2))"/>
 <listEntry value="0\neg (DistMultiPaxos(o1)!MultiPaxos!ChosenAt(1, 1, c1) /\ votes[o1][a1][1][0] = c2)"/>
 <listEntry value="0TypeInv"/>
-<listEntry value="1M2Paxos!Correctness"/>
+<listEntry value="0M2Paxos!Correctness"/>
 </listAttribute>
 <listAttribute key="modelCorrectnessProperties">
-<listEntry value="0M2Paxos!Spec"/>
+<listEntry value="1M2Paxos!Spec2"/>
 </listAttribute>
 <stringAttribute key="modelExpressionEval" value=""/>
 <stringAttribute key="modelParameterActionConstraint" value=""/>
@@ -54,5 +54,9 @@
 <intAttribute key="simuDepth" value="100"/>
 <intAttribute key="simuSeed" value="-1"/>
 <stringAttribute key="specName" value="DistributedM2Paxos"/>
+<listAttribute key="traceExploreExpressions">
+<listEntry value="1M2Paxos!MultiPaxos(o2)!Vote(a2, c1, 1)"/>
+<listEntry value="1votes' = [o \in Objects |-&gt;&#10;            IF o \in AccessedBy(c1)&#10;            THEN &#10;                LET i == CHOOSE i \in Instances : i &lt;= NextInstance(o)&#10;                IN  [votes[o] EXCEPT ![a2] = [@ EXCEPT ![i] = &#10;                        IF ballots[o][a2] # -1&#10;                        THEN [@ EXCEPT ![ballots[o][a2]] = c1]&#10;                        ELSE @]]&#10;            ELSE votes[o]]"/>
+</listAttribute>
 <stringAttribute key="view" value=""/>
 </launchConfiguration>

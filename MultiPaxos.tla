@@ -175,7 +175,7 @@ JoinBallot(a, b) ==
 (***************************************************************************)
 Vote(a, v, i) ==
     /\  ballot[a] # -1
-    /\  vote[a][i][ballot[a]] = None
+    /\  vote[a][i][ballot[a]] \in {None,v}
     /\  \E Q \in Quorums :
             /\  \A q \in Q : ballot[q] \geq ballot[a]
             /\  v \in ProvedSafeAt(i, Q, ballot[a]) \cap propCmds
@@ -187,7 +187,7 @@ Vote(a, v, i) ==
 Next == 
     \/  \E v \in V : Propose(v)
     \/  \E a \in Acceptors : \E b \in Ballots : JoinBallot(a, b)
-    \/  \E a \in Acceptors : \E i \in Instances : \E v \in propCmds : 
+    \/  \E a \in Acceptors, i \in Instances, v \in propCmds : 
             Vote(a, v, i)
     
 Correctness ==  
@@ -201,5 +201,5 @@ THEOREM Spec => []Correctness
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Dec 01 11:42:02 EST 2015 by nano
+\* Last modified Mon Dec 07 17:04:41 EST 2015 by nano
 \* Created Mon Nov 02 09:08:37 EST 2015 by nano

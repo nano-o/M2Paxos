@@ -192,13 +192,16 @@ JoinBallot2(a, o, b) ==
 
 Vote2(c, a) ==
     \* Vote for c in all of the instances of c's objects:
-    /\  votes' = [o \in Objects |->
-            IF o \in AccessedBy(c)
-            THEN [votes[o] EXCEPT ![a] = [@ EXCEPT ![NextInstance(o)] = 
-                IF ballots[o][a] # -1
-                THEN [@ EXCEPT ![ballots[o][a]] = c]
-                ELSE @]]
-            ELSE votes[o]]
+    /\ \E is \in [AccessedBy(c) -> Instances] : 
+        /\  \A obj \in AccessedBy(c) : is[obj] <= NextInstance(obj)   
+        /\  votes' = [o \in Objects |->
+                IF o \in AccessedBy(c)
+                THEN 
+                    [votes[o] EXCEPT ![a] = [@ EXCEPT ![is[o]] = 
+                        IF ballots[o][a] # -1
+                        THEN [@ EXCEPT ![ballots[o][a]] = c]
+                        ELSE @]]
+                ELSE votes[o]]
     /\  UNCHANGED ballots
     \* Only do the updates above if all of the instances can take the transition according to MultiPaxos: 
     /\  \A o \in AccessedBy(c) : \E i \in Instances :
@@ -214,7 +217,10 @@ Next2 ==
     \/  \E c \in Commands : \E a \in Acceptors :
             Vote2(c, a)
     \/  \E c \in V : Propose(c)
-            
+
+
+Spec2 == Init /\ [][Next2]_<<ballots, votes, propCmds>> 
+    
 (***************************************************************************)
 (* Model-checking results:                                                 *)
 (*                                                                         *)
@@ -237,5 +243,5 @@ Next2 ==
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Dec 01 11:40:04 EST 2015 by nano
+\* Last modified Mon Dec 07 16:48:22 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano

@@ -75,10 +75,9 @@ Phase1a(c) ==
                     ELSE network[o]]
     /\  UNCHANGED <<ballots, votes, propCmds>>
 
-Phase1b(a, c) == 
-    /\  \E b \in Ballots : 
-            \A o \in AccessedBy(c) : DistMultiPaxos(o)!Phase1b(a, b, c)
-    /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<ballots[o], votes[o], network[o]>>
+Phase1b(o, a, c) == 
+    /\  \E b \in Ballots : DistMultiPaxos(o)!Phase1b(a, b, c)
+    /\  \A obj \in Objects \ {o} : UNCHANGED <<ballots[obj], votes[obj], network[obj]>>
 
 (***************************************************************************)
 (* The Phase2a(c) action.                                                  *)
@@ -100,7 +99,7 @@ Vote(a, c) ==
     
 Next ==
     \E c \in Commands : Propose(c) \/ Phase1a(c) \/ Phase2a(c)
-        \/  \E a \in Acceptors :  Phase1b(a, c) \/ Vote(a, c)
+        \/  \E a \in Acceptors, o \in Objects :  Phase1b(o, a, c) \/ Vote(a, c)
 
 Spec == Init /\ [][Next]_<<ballots, votes, network, propCmds>>
 
@@ -114,25 +113,27 @@ THEOREM Spec => []M2Paxos!Correctness
 (* model-checked with TLC.                                                 *)
 (***************************************************************************)
 
-Phase1b2(a, c) == 
-    /\  \A o \in AccessedBy(c) : \E b \in Ballots :
+Phase1b2(o, a, c) == 
+    /\  \E b \in Ballots :
             /\  ballots[o][a] < b
             /\  <<"1a",b>> \in network[o]
-    /\  LET bals == [o \in AccessedBy(c) |-> CHOOSE b \in Ballots :
+    /\  LET obal == 
+            CHOOSE b \in Ballots :
                 /\  ballots[o][a] < b
-                /\  <<"1a", b>> \in network[o]]
-        IN  /\  ballots' = [o \in Objects |-> 
-                    IF o \in AccessedBy(c)
-                    THEN [ballots[o] EXCEPT ![a] = bals[o]]
-                    ELSE ballots[o]]
-            /\  network' = [o \in Objects |->
-                    IF o \in AccessedBy(c)
+                /\  <<"1a", b>> \in network[o]
+        IN 
+            /\    ballots' = [obj \in Objects |-> 
+                    IF obj = o
+                    THEN [ballots[o] EXCEPT ![a] = obal]
+                    ELSE ballots[obj]]
+            /\  network' = [obj \in Objects |->
+                    IF obj = o
                     THEN network[o] \cup 
-                        {<<"1b", a, i, bals[o], DistMultiPaxos(o)!MaxAcceptorVote(a,i)>> : i \in Instances}
-                    ELSE network[o]]
+                        {<<"1b", a, i, obal, DistMultiPaxos(o)!MaxAcceptorVote(a,i)>> : i \in Instances}
+                    ELSE network[obj]]
     /\  UNCHANGED <<votes, propCmds>>
     /\  \E b \in Ballots : 
-            \A o \in AccessedBy(c) : DistMultiPaxos(o)!Phase1b(a, b, c) 
+            DistMultiPaxos(o)!Phase1b(a, b, c) 
 
 Phase2a2(c) ==
     LET OkForObj(o, b, Q) ==
@@ -172,7 +173,7 @@ Vote2(a, c) ==
     
 Next2 ==
     \E c \in Commands : Propose(c) \/ Phase1a(c) \/ Phase2a2(c)
-        \/  \E a \in Acceptors :  Phase1b2(a, c) \/ Vote2(a, c)
+        \/  \E a \in Acceptors, o \in Objects :  Phase1b2(o, a, c) \/ Vote2(a, c)
 
 Spec2 == Init /\ [][Next2]_<<ballots, votes, network, propCmds>>
 
@@ -192,5 +193,5 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, network, propCmds>>
    
 =============================================================================
 \* Modification History
-\* Last modified Tue Dec 01 11:40:20 EST 2015 by nano
+\* Last modified Mon Dec 07 16:27:19 EST 2015 by nano
 \* Created Wed Nov 18 18:34:22 EST 2015 by nano
