@@ -5,7 +5,7 @@
 (* several MultiPaxos instances (one per object).                          *)
 (***************************************************************************)
 
-EXTENDS MultiConsensus, Sequences, TLC, Objects
+EXTENDS MultiConsensus, Sequences, Objects
 
 ASSUME Instances \subseteq Nat \ {0}
 
@@ -72,8 +72,10 @@ JoinBallot(a, o, b) ==
 
 \* Vote for c in all of the instances of c's objects:
 Vote(a, c) ==
-    /\  \A o \in AccessedBy(c) :
-            MultiPaxos(o)!Vote(a, NextInstance(o), c)
+    /\ \E is \in [AccessedBy(c) -> Instances] : 
+        /\  \A obj \in AccessedBy(c) : is[obj] <= NextInstance(obj)
+        /\  \A o \in AccessedBy(c) :
+                MultiPaxos(o)!Vote(a, c, is[o])
     /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<ballots[o], votes[o]>>
     
 Propose(v) ==
@@ -180,8 +182,11 @@ Correctness ==  \A c1,c2 \in Commands :
 THEOREM Spec => []Correctness
 
 (***************************************************************************)
-(* The spec above cannot be used with TLC.  Below is a second version of   *)
-(* the spec, which should be equivalent to the one above, and which can be *)
+(* The spec above cannot be used with TLC because TLC does not accept      *)
+(* statements like fun[x]' = y (updating the value of a function on just a *)
+(* subset of its domain), and that's what happens when we reuse the        *)
+(* specification of MultiPaxos.  Below is a second version of the spec,    *)
+(* which should be equivalent to the one above, and which can be           *)
 (* model-checked with TLC.                                                 *)
 (***************************************************************************)
 
@@ -229,11 +234,12 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, propCmds>>
 (*                                                                         *)
 (* Checked CorrectnessSimple.                                              *)
 (*                                                                         *)
-(* State constraints:                                                      *)
+(* State constraint to avoid duplicate commands and overflows caused by    *)
+(* accessing votes[a][o][NextInstance(i)] when all instances are complete: *)
 (*     /\ \A o \in Objects : \E i \in Instances : \neg Complete(o, i)      *)
 (*     /\ \A o \in Objects : \A a \in Acceptors : \A i \in Instances : \A c \in Commands : \neg MultiPaxos(o)!Chosen(i, votes[o][a][i]) *)
 (*                                                                         *)
-(* Running on 48 cores on whitewhale with 120GB of memory.                 *)
+(* Running on 48 Xeon cores with 120GB of memory.                          *)
 (*                                                                         *)
 (* Exhaustive exploration completed: 674414109 states generated, 48486426  *)
 (* distinct states found.  The depth of the complete state graph search is *)
@@ -243,5 +249,5 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, propCmds>>
 
 =============================================================================
 \* Modification History
-\* Last modified Mon Dec 07 16:48:22 EST 2015 by nano
+\* Last modified Mon Dec 07 18:20:30 EST 2015 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano

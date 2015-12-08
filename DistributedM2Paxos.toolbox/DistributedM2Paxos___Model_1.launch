@@ -27,7 +27,7 @@
 <listEntry value="0M2Paxos!Correctness"/>
 </listAttribute>
 <listAttribute key="modelCorrectnessProperties">
-<listEntry value="1M2Paxos!Spec2"/>
+<listEntry value="0M2Paxos!Spec"/>
 </listAttribute>
 <stringAttribute key="modelExpressionEval" value=""/>
 <stringAttribute key="modelParameterActionConstraint" value=""/>

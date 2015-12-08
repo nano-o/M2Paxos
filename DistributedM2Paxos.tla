@@ -105,11 +105,14 @@ Spec == Init /\ [][Next]_<<ballots, votes, network, propCmds>>
 
 M2Paxos == INSTANCE M2Paxos
 
-THEOREM Spec => []M2Paxos!Correctness 
+THEOREM Spec => M2Paxos!Spec
 
 (***************************************************************************)
-(* The spec above cannot be used with TLC.  Below is a second version of   *)
-(* the spec, which should be equivalent to the one above, and which can be *)
+(* The spec above cannot be used with TLC because TLC does not accept      *)
+(* statements like fun[x]' = y (updating the value of a function on just a *)
+(* subset of its domain), and that's what happens when we reuse the        *)
+(* specification of MultiPaxos.  Below is a second version of the spec,    *)
+(* which should be equivalent to the one above, and which can be           *)
 (* model-checked with TLC.                                                 *)
 (***************************************************************************)
 
@@ -184,14 +187,32 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, network, propCmds>>
 (* accessing only one object), 3 acceptors, majority quorums, 2 ballots, 2 *)
 (* instances per object.                                                   *)
 (*                                                                         *)
-(* Checked the property M2Paxos!Correctness                                *)
+(* Verified that Spec2 => M2Paxos!Spec2.  Result:                          *)
 (*                                                                         *)
-(* Exhaustive exploration completed: 243636 distinct states generated,     *)
-(* diameter 23, ran for 10 minutes.                                        *)
+(*     Model checking completed. No error has been found.                  *)
+(*       Estimates of the probability that TLC did not check all reachable states *)
+(*       because two distinct states had the same fingerprint:             *)
+(*       calculated (optimistic):  val = 1.8E-6                            *)
+(*       based on the actual fingerprints:  val = 1.3E-6                   *)
+(*     32992499 states generated, 1026307 distinct states found, 0 states left on queue. *)
+(*     The depth of the complete state graph search is 31.                 *)
+(*     Finished. (2015-12-07 18:08:43)                                     *)
+(*                                                                         *)
+(* Verified that Spec2 => M2Paxos!Spec.  Running on 48 Xeon cores with     *)
+(* 120GB of memory, it took 13 minutes.  Result:                           *)
+(*                                                                         *)
+(*     Model checking completed. No error has been found.                  *)
+(*       Estimates of the probability that TLC did not check all reachable states *)
+(*       because two distinct states had the same fingerprint:             *)
+(*       calculated (optimistic):  val = 1.8E-6                            *)
+(*       based on the actual fingerprints:  val = 1.3E-6                   *)
+(*     32992499 states generated, 1026307 distinct states found, 0 states left on queue. *)
+(*     The depth of the complete state graph search is 30.                 *)
+(*                                                                         *)
 (*                                                                         *)
 (***************************************************************************)
    
 =============================================================================
 \* Modification History
-\* Last modified Mon Dec 07 16:27:19 EST 2015 by nano
+\* Last modified Mon Dec 07 19:40:10 EST 2015 by nano
 \* Created Wed Nov 18 18:34:22 EST 2015 by nano
