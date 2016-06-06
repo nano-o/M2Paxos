@@ -95,7 +95,7 @@ Phase2a(b, i, v) ==
         /\  \A a \in Q : \E m \in 1bMsgs(b, i, Q) : m[2] = a
         /\  LET maxV == MaxVote(b, i , Q)
                 safe == IF maxV # None THEN {maxV} ELSE propCmds
-            IN  /\  v \in safe 
+            IN  /\  v \in safe
                 /\  network' = network \cup {<<"2a", i, b, v>>}
     /\  UNCHANGED <<propCmds, ballot, vote>>
 
@@ -122,5 +122,5 @@ THEOREM Spec => MultiPaxos!Spec
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Nov 18 23:58:35 EST 2015 by nano
+\* Last modified Fri Mar 04 10:10:25 EST 2016 by nano
 \* Created Fri Nov 13 17:59:21 EST 2015 by nano

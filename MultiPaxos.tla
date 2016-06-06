@@ -5,13 +5,12 @@
 (* An abstract specification of the MultiPaxos algorithm.  We do not model *)
 (* the network nor leaders explicitely.  Instead, we keep the history of   *)
 (* all votes cast and use this history to describe how new votes are cast. *)
-(* Note that, in some way, receiving a message corresponds to reading a    *)
-(* past state of the sender.  We produce the effect of having the leader   *)
-(* by requiring that not two different values can be voted for in the same *)
-(* ballot.                                                                 *)
+(* We produce the effect of having the leader by requiring that not two    *)
+(* different values can be voted for in the same ballot.                   *)
 (*                                                                         *)
 (* This specification is inspired from the abstract specification of       *)
-(* Generalized Paxos presented in the Generalized Paxos paper by Lamport.  *)
+(* Generalized Paxos presented in "Generalized Consensus and Paxos" by     *)
+(* Lamport.                                                                *)
 (***************************************************************************)
 
 EXTENDS MultiConsensus
@@ -198,8 +197,7 @@ Spec == Init /\ [][Next]_<<ballot,vote,propCmds>>
 
 THEOREM Spec => []Correctness
         
-
 =============================================================================
 \* Modification History
-\* Last modified Mon Dec 07 18:10:57 EST 2015 by nano
+\* Last modified Thu Mar 03 14:04:37 EST 2016 by nano
 \* Created Mon Nov 02 09:08:37 EST 2015 by nano

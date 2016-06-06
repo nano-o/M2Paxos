@@ -11,7 +11,7 @@
 <stringAttribute key="distributedTLCVMArgs" value=""/>
 <intAttribute key="fpBits" value="0"/>
 <intAttribute key="fpIndex" value="1"/>
-<intAttribute key="maxHeapSize" value="60"/>
+<intAttribute key="maxHeapSize" value="71"/>
 <intAttribute key="maxSetSize" value="1000000"/>
 <booleanAttribute key="mcMode" value="true"/>
 <stringAttribute key="modelBehaviorInit" value=""/>
@@ -19,6 +19,7 @@
 <stringAttribute key="modelBehaviorSpec" value="Spec2"/>
 <intAttribute key="modelBehaviorSpecType" value="1"/>
 <stringAttribute key="modelBehaviorVars" value="votes, propCmds, ballots, network"/>
+<stringAttribute key="modelComments" value=""/>
 <booleanAttribute key="modelCorrectnessCheckDeadlock" value="false"/>
 <listAttribute key="modelCorrectnessInvariants">
 <listEntry value="0\neg (Complete(o1, 1) /\ Complete(o1,2))"/>
@@ -27,7 +28,7 @@
 <listEntry value="0M2Paxos!Correctness"/>
 </listAttribute>
 <listAttribute key="modelCorrectnessProperties">
-<listEntry value="0M2Paxos!Spec"/>
+<listEntry value="1M2Paxos!Spec"/>
 </listAttribute>
 <stringAttribute key="modelExpressionEval" value=""/>
 <stringAttribute key="modelParameterActionConstraint" value=""/>
@@ -39,12 +40,11 @@
 <listEntry value="Acceptors;;{a1, a2, a3};1;0"/>
 <listEntry value="None;;None;1;0"/>
 <listEntry value="AccessedBy;c:;CASE c = c1 -&gt; Objects&#10;[] c = c2 -&gt; {o1};0;0"/>
+<listEntry value="MaxBallot;;1;0;0"/>
+<listEntry value="MaxInstance;;2;0;0"/>
 </listAttribute>
 <stringAttribute key="modelParameterContraint" value=""/>
-<listAttribute key="modelParameterDefinitions">
-<listEntry value="DistMultiPaxos!Ballots;;{0,1};0;0"/>
-<listEntry value="DistMultiPaxos!Instances;;{1,2};0;0"/>
-</listAttribute>
+<listAttribute key="modelParameterDefinitions"/>
 <stringAttribute key="modelParameterModelValues" value="{}"/>
 <stringAttribute key="modelParameterNewDefinitions" value=""/>
 <intAttribute key="numberOfWorkers" value="7"/>

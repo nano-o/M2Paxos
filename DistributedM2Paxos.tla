@@ -9,15 +9,13 @@ EXTENDS MultiConsensus, Objects
 VARIABLES
     ballots, votes, network, propCmds
 
-ASSUME Instances \subseteq Nat \ {0}
-
 ASSUME Commands = V
 
 DistMultiPaxos(o) == INSTANCE DistributedMultiPaxos WITH
     ballot <- ballots[o],
     vote <- votes[o],
     network <- network[o]
-    
+
 (***************************************************************************)
 (* Is instance i of object o complete?                                     *)
 (***************************************************************************)
@@ -46,12 +44,11 @@ TypeInv ==
     /\  network \in [Objects -> SUBSET Msgs]
     /\  propCmds \subseteq V
 
-InitBallot == [a \in Acceptors |-> -1]
-InitVote == [a \in Acceptors |-> [i \in Instances |-> [b \in Ballots |-> None]]]
-
 (***************************************************************************)
 (* The initial state.                                                      *)
 (***************************************************************************)
+InitBallot == [a \in Acceptors |-> -1]
+InitVote == [a \in Acceptors |-> [i \in Instances |-> [b \in Ballots |-> None]]]
 Init ==
     /\  ballots = [o \in Objects |-> InitBallot]
     /\  votes = [o \in Objects |-> InitVote]
@@ -86,8 +83,9 @@ Phase1b(o, a, c) ==
 (* we reuse the NextInstance(_) operator.                                  *)
 (***************************************************************************)
 Phase2a(c) ==
-    /\  \A o \in AccessedBy(c) : \E b \in Ballots :
-            DistMultiPaxos(o)!Phase2a(b, NextInstance(o), c)
+    /\  \A o \in AccessedBy(c) : 
+            /\  NextInstance(o) \in Instances 
+            /\  \E b \in Ballots : DistMultiPaxos(o)!Phase2a(b, NextInstance(o), c)
     /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<network[o]>>
     /\  UNCHANGED <<propCmds, ballots, votes>>
 
@@ -140,6 +138,7 @@ Phase1b2(o, a, c) ==
 
 Phase2a2(c) ==
     LET OkForObj(o, b, Q) ==
+        /\  NextInstance(o) \in Instances
         /\  \neg (\E m \in network[o] : m[1] = "2a" /\ m[2] = NextInstance(o) /\ m[3] = b)
         /\ \A a \in Q : \E m \in DistMultiPaxos(o)!1bMsgs(b, NextInstance(o), Q) : m[2] = a
     IN
@@ -214,5 +213,5 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, network, propCmds>>
    
 =============================================================================
 \* Modification History
-\* Last modified Mon Dec 07 19:40:10 EST 2015 by nano
+\* Last modified Fri Mar 04 10:11:21 EST 2016 by nano
 \* Created Wed Nov 18 18:34:22 EST 2015 by nano
