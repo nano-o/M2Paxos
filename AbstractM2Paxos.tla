@@ -2,9 +2,11 @@
 
 EXTENDS Correctness, Objects, Integers, Maps
 
-Instances == Nat \ {0}
+CONSTANT Instances
+ASSUME Instances = Nat \ {0} \/ \E i \in Nat : Instances = 1..i
 
-LeaseId == Nat
+CONSTANT LeaseId
+ASSUME LeaseId \subseteq Nat
 
 (***************************************************************************)
 (* The algorithms maintains a sequence of instances per object.  Processes *)
@@ -26,21 +28,23 @@ LeaseId == Nat
 (* instance for commands accessing objects in the lease that o is          *)
 (* currently in.                                                           *)
 (***************************************************************************)
-VARIABLES decision, lease, minInstance, leaseObjs
+VARIABLES decision, lease, minInstance, leaseObjs, executed
 
 TypeInvariant ==
     /\ decision \in [Objects -> [Instances -> Commands \cup {None}]]
     /\ lease \in [Objects -> LeaseId \cup {-1}]
     /\ minInstance \in [Objects -> Instances]
     /\ \E L \in SUBSET LeaseId : leaseObjs \in [L -> SUBSET Objects]
+    /\ executed \in SUBSET Commands
     
 AvailableLeaseIds == LeaseId \ DOMAIN leaseObjs
     
 Init ==
-    /\ decision = [i \in Instances |-> None]
+    /\ decision = [o \in Objects |-> [i \in Instances |-> None]]
     /\ lease = [o \in Objects |-> -1]
     /\ minInstance = [o \in Objects |-> 1]
     /\ leaseObjs = <<>>
+    /\ executed = {}
 
 (***************************************************************************)
 (* To use the definitions from the Correctness module, we need to obtain   *)
@@ -52,14 +56,14 @@ IsBijection(f, X, Y) ==
     /\  \A x,y \in X : x # y => f[x] # f[y]
     /\  \A y \in Y : \E x \in X : f[x] = y
     
-Seqs == 
+Seqs(ds) == 
     LET RemoveHoles(s) == CHOOSE t \in Seq(Commands) :
-        LET  NotNone == {i \in Instances : s[i] # None}
+        LET  NotNone == {i \in DOMAIN s : s[i] # None}
         IN
             \E f \in [DOMAIN t -> NotNone] :
                 /\  IsBijection(f, DOMAIN t, NotNone)
                 /\  \A i \in DOMAIN t : t[i] = s[f[i]]
-    IN [o \in Objects |-> RemoveHoles(decision[o])]
+    IN [o \in Objects |-> RemoveHoles(ds[o])]
 
 Max(xs) ==  CHOOSE x \in xs : \A y \in xs : y <= x
 
@@ -78,16 +82,20 @@ LocalCorrectness(l) ==
             IF o \in leaseObjs[l] /\ minInstance[o] # 0 /\ MaxDecision(o) # 0
             THEN SubSeq(decision[o], minInstance[o], MaxDecision(o))
             ELSE <<>>]
-    IN  Correctness2(view)
+    IN  Correctness2(Seqs(view))
 
+InstancesAvailable(objs) ==
+    \A o \in objs : \E i \in Instances : i >= minInstance[o] /\ decision[o][i] = None
+    
 Acquire(objs) == 
+    /\  InstancesAvailable(objs)
     /\ \E l \in AvailableLeaseIds : 
         /\ lease' = [o \in Objects |->
             IF o \in objs THEN l ELSE lease[o]]
         /\ leaseObjs' = leaseObjs ++ <<l, objs>> 
     /\ minInstance' = [o \in Objects |-> 
         IF o \in objs THEN MaxDecision(o)+1 ELSE minInstance[o]]
-    /\ UNCHANGED decision
+    /\ UNCHANGED <<decision, executed>>
 
 Invariant1 == \A o \in Objects : o \in leaseObjs[lease[o]]
 
@@ -96,12 +104,15 @@ Invariant1 == \A o \in Objects : o \in leaseObjs[lease[o]]
 (* accessed objects.                                                       *)
 (***************************************************************************)
 Exec(c) == \E l \in DOMAIN leaseObjs :
+    /\ c \notin executed
     /\ \A o \in AccessedBy(c) : lease[o] = l
+    /\ InstancesAvailable(AccessedBy(c))
     /\ decision' = [o \in Objects |->
         IF o \notin AccessedBy(c) THEN decision[o]
-        ELSE 
+        ELSE
             LET i == CHOOSE i \in {i \in Instances : i >= minInstance[o]} : decision[o][i] = None
             IN  [decision[o] EXCEPT ![i] = c]]
+    /\ executed' = executed \cup {c}
     /\ UNCHANGED <<lease, leaseObjs, minInstance>>
     /\ LocalCorrectness(l)
     
@@ -109,10 +120,11 @@ Next ==
     \/  \E objs \in SUBSET Objects : Acquire(objs)
     \/  \E c \in Commands : Exec(c)    
 
-Spec == Init /\ [][Next]_<<decision, lease, minInstance, leaseObjs>>
+Spec == Init /\ [][Next]_<<decision, lease, minInstance, leaseObjs, executed>>
     
+THEOREM Spec => []Correctness2(Seqs(decision))
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 07 10:58:45 EDT 2016 by nano
+\* Last modified Tue Jun 07 11:32:21 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
