@@ -24,7 +24,9 @@
 <listAttribute key="modelCorrectnessInvariants">
 <listEntry value="0TypeInvariant"/>
 <listEntry value="0Correctness2(Seqs(decision))"/>
-<listEntry value="1Cardinality(DependencyGraph(Seqs(decision))[1]) # 2"/>
+<listEntry value="0Cardinality(DependencyGraph(Seqs(decision))[1]) # 3"/>
+<listEntry value="0Correctness(Seqs(decision))"/>
+<listEntry value="1\neg(decision[o1][1] = c1 /\ decision[o2][2] = c1 /\ decision[o2][1] = c2 /\ decision[o3][2] = c2 /\ decision[o3][1] = c3 /\ decision[o1][2] = c3)"/>
 </listAttribute>
 <listAttribute key="modelCorrectnessProperties"/>
 <stringAttribute key="modelExpressionEval" value=""/>
@@ -52,5 +54,10 @@
 <intAttribute key="simuDepth" value="100"/>
 <intAttribute key="simuSeed" value="-1"/>
 <stringAttribute key="specName" value="AbstractM2Paxos"/>
+<listAttribute key="traceExploreExpressions">
+<listEntry value="1Seqs(decision)"/>
+<listEntry value="1DependencyGraph(Seqs(decision))"/>
+<listEntry value="1Correctness(Seqs(decision))"/>
+</listAttribute>
 <stringAttribute key="view" value=""/>
 </launchConfiguration>

@@ -55,13 +55,17 @@ IsBijection(f, X, Y) ==
     /\  Image(f) = Y
     /\  \A x,y \in X : x # y => f[x] # f[y]
     /\  \A y \in Y : \E x \in X : f[x] = y
-    
+
+IsIncreasing(f) ==
+    \A x,y \in DOMAIN f : x <= y => f[x] <= f[y]
+
 Seqs(ds) == 
     LET RemoveHoles(s) == CHOOSE t \in Seq(Commands) :
         LET  NotNone == {i \in DOMAIN s : s[i] # None}
         IN
             \E f \in [DOMAIN t -> NotNone] :
                 /\  IsBijection(f, DOMAIN t, NotNone)
+                /\  IsIncreasing(f)
                 /\  \A i \in DOMAIN t : t[i] = s[f[i]]
     IN [o \in Objects |-> RemoveHoles(ds[o])]
 
@@ -88,6 +92,7 @@ InstancesAvailable(objs) ==
     \A o \in objs : \E i \in Instances : i >= minInstance[o] /\ decision[o][i] = None
     
 Acquire(objs) == 
+    /\ \A l \in DOMAIN leaseObjs : \neg objs \subseteq leaseObjs[l]
     /\  InstancesAvailable(objs)
     /\ \E l \in AvailableLeaseIds : 
         /\ lease' = [o \in Objects |->
@@ -107,17 +112,23 @@ Exec(c) == \E l \in DOMAIN leaseObjs :
     /\ c \notin executed
     /\ \A o \in AccessedBy(c) : lease[o] = l
     /\ InstancesAvailable(AccessedBy(c))
-    /\ decision' = [o \in Objects |->
-        IF o \notin AccessedBy(c) THEN decision[o]
-        ELSE
-            LET i == CHOOSE i \in {i \in Instances : i >= minInstance[o]} : decision[o][i] = None
-            IN  [decision[o] EXCEPT ![i] = c]]
+    /\ \E is \in [AccessedBy(c) -> Instances] : 
+        /\ \A o \in AccessedBy(c) :
+            /\ is[o] >= minInstance[o]
+            /\ decision[o][is[o]] = None
+        /\ decision' = [o \in Objects |->
+               IF o \notin AccessedBy(c) THEN decision[o]
+               ELSE [decision[o] EXCEPT ![is[o]] = c]]  
     /\ executed' = executed \cup {c}
     /\ UNCHANGED <<lease, leaseObjs, minInstance>>
-    /\ LocalCorrectness(l)
+    \*/\ LocalCorrectness(l)
     
+\* An under-approximation of what leases are useful to acquire
+\* ToAcquire == {AccessedBy(c) : c \in Commands} \cup {AccessedBy(c1) \cup AccessedBy(c2) : c1,c2 \in Commands}
+ToAcquire == {Objects}
+
 Next == 
-    \/  \E objs \in (SUBSET Objects) \ {} : Acquire(objs)
+    \/  \E objs \in ToAcquire : Acquire(objs)
     \/  \E c \in Commands : Exec(c)    
 
 Spec == Init /\ [][Next]_<<decision, lease, minInstance, leaseObjs, executed>>
@@ -126,5 +137,5 @@ THEOREM Spec => []Correctness2(Seqs(decision))
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 07 11:40:56 EDT 2016 by nano
+\* Last modified Tue Jun 07 12:22:25 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
