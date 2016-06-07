@@ -117,7 +117,7 @@ Exec(c) == \E l \in DOMAIN leaseObjs :
     /\ LocalCorrectness(l)
     
 Next == 
-    \/  \E objs \in SUBSET Objects : Acquire(objs)
+    \/  \E objs \in (SUBSET Objects) \ {} : Acquire(objs)
     \/  \E c \in Commands : Exec(c)    
 
 Spec == Init /\ [][Next]_<<decision, lease, minInstance, leaseObjs, executed>>
@@ -126,5 +126,5 @@ THEOREM Spec => []Correctness2(Seqs(decision))
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 07 11:32:21 EDT 2016 by nano
+\* Last modified Tue Jun 07 11:40:56 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
