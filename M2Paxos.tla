@@ -81,7 +81,7 @@ JoinBallot(a, o, b) ==
 Vote(a, c) ==
     /\ c \in propCmds
     /\ \E is \in [AccessedBy(c) -> Instances] :
-        /\  \A obj \in AccessedBy(c) : is[obj] <= NextInstance(obj) /\ is[obj] \in Instances
+        /\  \A obj \in AccessedBy(c) : is[obj] <= NextInstance(obj)
         /\  \A o \in AccessedBy(c) :
                 MultiPaxos(o)!Vote(a, c, is[o])
     /\  \A o \in Objects \ AccessedBy(c) : UNCHANGED <<ballots[o], votes[o]>>
@@ -167,7 +167,7 @@ THEOREM Spec => []Correctness
 (* which should be equivalent to the one above, and which can be           *)
 (* model-checked with TLC.                                                 *)
 (***************************************************************************)
-
+    
 JoinBallot2(a, o, b) ==
     /\  ballots' = [ballots EXCEPT ![o] = [ballots[o] EXCEPT ![a] = b]]
     /\  UNCHANGED votes
@@ -206,5 +206,5 @@ Spec2 == Init /\ [][Next2]_<<ballots, votes, propCmds>>
 
 =============================================================================
 \* Modification History
-\* Last modified Thu May 26 22:42:07 EDT 2016 by nano
+\* Last modified Tue Jun 07 09:13:00 EDT 2016 by nano
 \* Created Mon Nov 02 14:55:16 EST 2015 by nano

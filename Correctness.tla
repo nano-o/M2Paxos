@@ -4,16 +4,16 @@
 (* Correctness condition for M2Paxos.                                      *)
 (***************************************************************************)
 
-EXTENDS Objects, Sequences, Naturals, TLC
+EXTENDS Objects, Sequences, Naturals, TLC, Maps
 
 INSTANCE DiGraph WITH V <- Commands
 
 (***************************************************************************)
-(* For each object, the algorithms builds a sequence of operations that we *)
-(* model as a map from object to sequence of commands.  Such a map is      *)
-(* well-formed when there are no duplicate commands in any sequence, and   *)
-(* if c is in object o's sequence, the o is in the set of objects accessed *)
-(* by c.                                                                   *)
+(* For each object, the M2Paxos algorithm builds a sequence of operations  *)
+(* that we model as a map from object to sequence of commands.  Such a map *)
+(* is well-formed when there are no duplicate commands in any sequence,    *)
+(* and if c is in object o's sequence, the o is in the set of objects      *)
+(* accessed by c.                                                          *)
 (***************************************************************************)
 WellFormed(seqs) ==
     /\ seqs \in [Objects -> Seq(Commands)]
@@ -83,5 +83,5 @@ Correctness2(seqs) == \E seqs2 \in [Objects -> Seq(Commands)] :
 
 =============================================================================
 \* Modification History
-\* Last modified Mon Jun 06 16:46:30 EDT 2016 by nano
+\* Last modified Tue Jun 07 10:59:10 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
