@@ -8,17 +8,19 @@ ASSUME Instances = Nat \ {0} \/ \E i \in Nat : Instances = 1..i
 CONSTANT LeaseId
 ASSUME LeaseId \subseteq Nat
 
-(***************************************************************************)
-(* The algorithms maintains a sequence of instances per object.  Processes *)
-(* called the proposers (not explicitely modeled here) can execute a       *)
-(* command by inserting it in all of the sequences of the objects it       *)
-(* accesses.                                                               *)
-(*                                                                         *)
-(* The algorithm guarantees that there is a total order among commands     *)
-(* such that each object's sequence can be interpreted as a subset of the  *)
-(* total order.  To implement this guarantee, proposers acquire exclusive  *)
-(* leases on sets of objects before executing commands.                    *)
-(***************************************************************************)
+(****************************************************************************
+
+
+The algorithms maintains a sequence of instances per object.  Processes
+called the proposers (not explicitely modeled here) can execute a
+command by inserting it in all of the sequences of the objects it
+accesses.
+
+The algorithm guarantees that there is a total order among commands
+such that each object's sequence can be interpreted as a subset of the
+total order.  To implement this guarantee, proposers acquire exclusive
+leases on sets of objects before executing commands.
+****************************************************************************)
 
 (***************************************************************************)
 (* For every object o and instance i, decision[o][i] is the decision made  *)
@@ -133,5 +135,5 @@ THEOREM Spec => []Correctness2(Seqs(decision))
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 07 13:16:20 EDT 2016 by nano
+\* Last modified Fri Jun 10 10:56:12 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano

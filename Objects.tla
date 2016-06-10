@@ -6,13 +6,13 @@
 (* where AccessedBy(c) is the set of objects accessed by the command c.    *)
 (***************************************************************************)
 
-CONSTANTS Commands, AccessedBy(_), Objects, Quorums
+EXTENDS Misc
 
-None == CHOOSE c : c \notin Commands
+CONSTANTS Commands, AccessedBy(_), Objects, Quorums
 
 ASSUME \A c \in Commands : AccessedBy(c) \in SUBSET Objects
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 07 09:35:50 EDT 2016 by nano
+\* Last modified Fri Jun 10 12:01:22 EDT 2016 by nano
 \* Created Wed Nov 18 23:02:07 EST 2015 by nano
