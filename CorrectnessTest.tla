@@ -1,6 +1,6 @@
 -------------------------- MODULE CorrectnessTest --------------------------
 
-EXTENDS TLC
+EXTENDS TLC, Misc
 
 C1 == INSTANCE Correctness WITH
     Commands <- {"c1","c2"},
@@ -50,13 +50,14 @@ ASSUME C3!Correctness(State6)
 
 (***************************************************************************)
 (* This state is bad because it is not possible to extend the sequence of  *)
-(* o2 without violating the correctness property.  However it still        *)
-(* satisfies the correctness property.                                     *)
+(* o2 without violating the first correctness property.  However it        *)
+(* violates the second, stronger, correctness property.                    *)
 (***************************************************************************)
-State7 == (1 :> ("o1" :> <<"c1">> @@ "o2" :> <<"c1">> @@ "o3" :> <<"c2","c3">>)
-    @@ 2 :> ("o1" :> <<"c1","c3">> @@ "o2" :> <<"c1">> @@ "o3" :> <<"c2">>))
+State7 == (1 :> ("o1" :> <<"c3">> @@ "o2" :> <<"c1">> @@ "o3" :> <<"c2","c3">>)
+    @@ 2 :> ("o1" :> <<"c3","c1">> @@ "o2" :> <<"c1">> @@ "o3" :> <<"c2">>))
 
 ASSUME C3!Correctness(State7)
+ASSUME \neg C3!Correctness2(State7)
 
 (***************************************************************************)
 (* A cycle involving three commands.                                       *)
@@ -68,5 +69,5 @@ ASSUME \neg C3!Correctness(State8)
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 13:28:01 EDT 2016 by nano
+\* Last modified Fri Jun 10 13:54:59 EDT 2016 by nano
 \* Created Fri Jun 10 12:57:45 EDT 2016 by nano

@@ -18,5 +18,5 @@ Max(S, LessEq(_,_)) == CHOOSE e \in S : \A e1 \in S : LessEq(e1,e)
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Jun 08 11:22:21 EDT 2016 by nano
+\* Last modified Fri Jun 10 13:53:02 EDT 2016 by nano
 \* Created Thu Feb 04 16:55:11 EST 2016 by nano

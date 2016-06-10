@@ -91,13 +91,9 @@ INSTANCE DiGraph
 (***************************************************************************)
 WellFormed(map) ==
     /\ map \in [Objects -> Seq(Commands)]
-    /\ PrintT(1)
     /\ \A o \in Objects : NoDup(map[o])
-    /\ PrintT(2)
     /\ \A o \in Objects : \A c \in Image(map[o]) :
-        /\  PrintT(<<"considering", o, c>>)
-        /\  o \in AccessedBy(c)
-    /\ PrintT(3)
+        o \in AccessedBy(c)
 
 (***************************************************************************)
 (* A command c1 depends on a command c2 if there is an object for which c1 *)
@@ -127,13 +123,13 @@ GlobalMap(gs) ==
         ObjSeqs(o) == {s[o] : s \in {gs[x] : x \in DOMAIN gs}}
     IN [o \in Objects |-> MaxSeq(ObjSeqs(o))]
 
-(***************************************************************************)
-(* Correctness of the global state:                                        *)
-(*                                                                         *)
-(*     1)  Every replica has a well-formed local object-sequence map;      *)
-(*     2)  For each object, all replicas agree on a total order of commands; *)
-(*     3)  The global object-sequence map is acyclic.                      *)
-(***************************************************************************)
+(****************************************************************************
+Correctness of the global state:
+
+    1)  Every replica has a well-formed local object-sequence map;
+    2)  For each object, all replicas agree on a total order of commands;
+    3)  The global object-sequence map is acyclic.
+****************************************************************************)
 Correctness(gs) == 
     LET replicas == DOMAIN gs 
     IN  /\ \A r \in replicas : WellFormed(gs[r])
@@ -142,9 +138,59 @@ Correctness(gs) ==
                 s2 == gs[r2][o]
             IN Prefix(s1,s2) \/ Prefix(s2,s1)
         /\  \neg HasCycle(DependencyGraph(GlobalMap(gs)))
-        
+
+(***************************************************************************)
+(* A stronger correctness property, to avoid the situation in which we     *)
+(* have                                                                    *)
+(*                                                                         *)
+(*     replica1[o1] = <<c1>>                                               *)
+(*     replica1[o2] = <<c2>>                                               *)
+(*     replica2[o1] = <<c1>>                                               *)
+(*     replica2[o2] = <<c2>>                                               *)
+(*                                                                         *)
+(* This state still satisfies the correctness condition above but the      *)
+(* system would then deadlock: there is no way to extend the sequences     *)
+(* with c1 or c2 without violating the correctness condition.              *)
+(***************************************************************************)
+
+(***************************************************************************)
+(* A well-formed sequence map is complete when if the command c is in an   *)
+(* object's sequence, then for all objects o accessed by c, c is also in   *)
+(* o's sequence.                                                           *)
+(***************************************************************************)
+IsComplete(seqs) == \A c \in Commands : \A o1,o2 \in Objects :
+    /\ c \in Image(seqs[o1])
+    /\ o2 \in AccessedBy(c)
+    => c \in Image(seqs[o2])
+
+(***************************************************************************)
+(* Pointwise prefix on maps                                                *)
+(***************************************************************************)
+IsPrefix(seqs1, seqs2) ==
+    \A o \in Objects : Prefix(seqs1[o], seqs2[o])
+
+(***************************************************************************)
+(* A stronger correctness property:                                        *)
+(*                                                                         *)
+(*     1)  Every replica has a well-formed local object-sequence map;      *)
+(*     2)  For each object, all replicas agree on a total order of commands; *)
+(*     3)  The global object-sequence map can be extended to a correct and complete *)
+(*      sequence map.                                                      *)
+(***************************************************************************)
+Correctness2(gs) == 
+    LET replicas == DOMAIN gs 
+    IN  /\ \A r \in replicas : WellFormed(gs[r])
+        /\ \A o \in Objects : \A r1,r2 \in replicas :
+            LET s1 == gs[r1][o]
+                s2 == gs[r2][o]
+            IN Prefix(s1,s2) \/ Prefix(s2,s1)
+        /\ \E m \in [Objects -> Seq(Commands)] :
+            LET gm == GlobalMap(gs)
+            IN  /\ IsPrefix(gm,m)
+                /\ IsComplete(m)
+                /\ \neg HasCycle(DependencyGraph(m))
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 13:23:29 EDT 2016 by nano
+\* Last modified Fri Jun 10 13:53:54 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
