@@ -80,7 +80,7 @@
 (* were informally described above.                                        *)
 (***************************************************************************)
 
-EXTENDS Objects, Sequences, Naturals, Maps, SequenceUtils
+EXTENDS Objects, Sequences, Naturals, Maps, SequenceUtils, TLC
 
 INSTANCE DiGraph
 
@@ -91,9 +91,13 @@ INSTANCE DiGraph
 (***************************************************************************)
 WellFormed(map) ==
     /\ map \in [Objects -> Seq(Commands)]
+    /\ PrintT(1)
     /\ \A o \in Objects : NoDup(map[o])
+    /\ PrintT(2)
     /\ \A o \in Objects : \A c \in Image(map[o]) :
-        o \in AccessedBy(c)
+        /\  PrintT(<<"considering", o, c>>)
+        /\  o \in AccessedBy(c)
+    /\ PrintT(3)
 
 (***************************************************************************)
 (* A command c1 depends on a command c2 if there is an object for which c1 *)
@@ -138,8 +142,9 @@ Correctness(gs) ==
                 s2 == gs[r2][o]
             IN Prefix(s1,s2) \/ Prefix(s2,s1)
         /\  \neg HasCycle(DependencyGraph(GlobalMap(gs)))
+        
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 12:51:15 EDT 2016 by nano
+\* Last modified Fri Jun 10 13:23:29 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
