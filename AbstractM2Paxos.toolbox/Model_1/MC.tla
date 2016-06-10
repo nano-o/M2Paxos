@@ -12,61 +12,57 @@ o1, o2, o3
 ----
 
 \* MV CONSTANT definitions Commands
-const_14653198459371647000 == 
+const_14655896531192104000 == 
 {c1, c2, c3}
 ----
 
 \* MV CONSTANT definitions Objects
-const_14653198459471648000 == 
+const_14655896531292105000 == 
 {o1, o2, o3}
 ----
 
-\* CONSTANT definitions @modelParameterConstants:0Quorums
-const_14653198459571649000 == 
-{}
-----
-
-\* CONSTANT definitions @modelParameterConstants:3AccessedBy(c)
-const_14653198459671650000(c) == 
+\* CONSTANT definitions @modelParameterConstants:2AccessedBy(c)
+const_14655896531392106000(c) == 
 CASE c = c1 -> {o1, o2}
 [] c = c2 -> {o2,o3}
 [] c = c3 -> {o3,o1}
 ----
 
-\* CONSTANT definitions @modelParameterConstants:4Instances
-const_14653198459771651000 == 
+\* CONSTANT definitions @modelParameterConstants:3Instances
+const_14655896531492107000 == 
 1..2
 ----
 
-\* CONSTANT definitions @modelParameterConstants:5LeaseId
-const_14653198459871652000 == 
+\* CONSTANT definitions @modelParameterConstants:4LeaseId
+const_14655896531592108000 == 
 0..3
 ----
 
-\* CONSTANT definition @modelParameterDefinitions:1
-def_ov_14653198460081654000(X) ==
+\* CONSTANT definition @modelParameterDefinitions:0
+def_ov_14655896531692109000(X) ==
 BSeq(X,3)
 ----
-\* CONSTANT definition @modelParameterDefinitions:2
-def_ov_14653198460181655000 ==
-0..100
+\* CONSTANT definition @modelParameterDefinitions:1
+def_ov_14655896531802110000 ==
+0..10
 ----
+\* Constant expression definition @modelExpressionEval
+const_expr_14655896532102113000 == 
+C!Correctness(GlobalMap([o \in Objects |-> [i \in Instances |-> Unknown]]))
+----
+
+\* Constant expression ASSUME statement @modelExpressionEval
+ASSUME PrintT(<<"$!@$!@$!@$!@$!",const_expr_14655896532102113000>>)
+----
+
 \* SPECIFICATION definition @modelBehaviorSpec:0
-spec_14653198460281656000 ==
+spec_14655896532202114000 ==
 Spec
 ----
 \* INVARIANT definition @modelCorrectnessInvariants:0
-inv_14653198460381657000 ==
-TypeInvariant
-----
-\* INVARIANT definition @modelCorrectnessInvariants:1
-inv_14653198460481658000 ==
-Correctness(Seqs(decision))
-----
-\* INVARIANT definition @modelCorrectnessInvariants:2
-inv_14653198460591659000 ==
-Invariant1
+inv_14655896532302115000 ==
+Correctness(instances)
 ----
 =============================================================================
 \* Modification History
-\* Created Tue Jun 07 13:17:26 EDT 2016 by nano
+\* Created Fri Jun 10 16:14:13 EDT 2016 by nano

@@ -1,120 +1,158 @@
 -------------------------- MODULE AbstractM2Paxos --------------------------
 
-EXTENDS Correctness, Objects, Integers, Maps
+EXTENDS Objects, Maps, SequenceUtils, Integers
+
+C == INSTANCE Correctness
+
+(***************************************************************************)
+(* In this module we specifies an algorithm describing how M2Paxos uses    *)
+(* leases on objects to maintain the correctness property of the global    *)
+(* object-sequence map while repeatedly increasing the set of commands     *)
+(* that can be executed by the replicas.  This specification describes at  *)
+(* an abstract level how leases and the global object-sequence map evolve, *)
+(* without any distributed-system model.                                   *)
+(***************************************************************************)
+
+(***************************************************************************)
+(* The algorithm maintains a sequence of instances per object, were an     *)
+(* instance can hold a command, or the special values Unknown and Aborted. *)
+(* The global object-sequence map is obtained from the object-instances    *)
+(* map by ignoring the instances that have value Aborted, truncating the   *)
+(* sequence at the first Unknown value encountered, and removing duplicate *)
+(* commands.                                                               *)
+(***************************************************************************)
 
 CONSTANT Instances
 ASSUME Instances = Nat \ {0} \/ \E i \in Nat : Instances = 1..i
+VARIABLE instances
 
+Unknown == CHOOSE x : x \notin Commands
+Aborted == CHOOSE x : x \notin Commands \cup {Unknown}
+
+GlobalMap(is) ==
+    [o \in Objects |->
+        LET unknowns == {i \in DOMAIN is[o] : is[o][i] = Unknown}
+            firstUnknown ==
+                IF unknowns # {} 
+                THEN Max(unknowns, LAMBDA i,j : j <= i) - 1
+                ELSE Len(is[o])
+            truncated == SubSeq(is[o], 1, firstUnknown)
+            filtered == SelectSeq(truncated, LAMBDA x : x # Aborted)  
+        IN RemDup(filtered)]
+
+
+Correctness(is) ==
+    \E m \in [Objects -> Seq(Commands)] :
+        LET gm == GlobalMap(is)
+        IN  /\ C!IsPrefix(gm,m)
+            /\ C!IsComplete(m)
+            /\ \neg C!HasCycle(C!DependencyGraph(m))
+
+(***************************************************************************)
+(* At any moment in time, an object is part of a unique lease, noted       *)
+(* lease[o][1], and has a minimum instance for that lease, noted           *)
+(* lease[o][2].                                                            *)
+(***************************************************************************)
 CONSTANT LeaseId
 ASSUME LeaseId \subseteq Nat
+VARIABLE lease
 
-(****************************************************************************
-
-
-The algorithms maintains a sequence of instances per object.  Processes
-called the proposers (not explicitely modeled here) can execute a
-command by inserting it in all of the sequences of the objects it
-accesses.
-
-The algorithm guarantees that there is a total order among commands
-such that each object's sequence can be interpreted as a subset of the
-total order.  To implement this guarantee, proposers acquire exclusive
-leases on sets of objects before executing commands.
-****************************************************************************)
+ActiveLeases == {l \in LeaseId : \E o \in Objects : lease[o][1] = l}
+LeaseObjects(l) == {o \in Objects : lease[o][1] = l}
 
 (***************************************************************************)
-(* For every object o and instance i, decision[o][i] is the decision made  *)
-(* in instance i of object o.                                              *)
+(* A command c can be assigned to a set of instances {i[o] : o \in         *)
+(* Objects}, one per object it accesses, when:                             *)
 (*                                                                         *)
-(* For every object o, lease[o] describes the lease that o is currently    *)
-(* participating in.  For example, lease[o1] = 2 and objs[2] = {o1, o2}    *)
-(* means that o1 accepted lease number 2 involving o1 and o2.  The lease   *)
-(* owner can then submit commands accessing o1 and o2 to o1.               *)
+(*     1)  all the objects that c accesses are part of the same lease;     *)
+(*     2)  for each object that c accesses, i[o] is greater or equal to the *)
+(*         minimum instance of o for its current lease;                    *)
+(*     3)  after the assignement, the object-sequence map obtained by      *)
+(*         restricting the global object-sequence map to the objects accessed *)
+(*         by c and, for each such object o, to the positions greater or   *)
+(*         equal than lease[o][2], satisfies the correctness condition     *)
+(*         for object-sequences.                                           *)
 (*                                                                         *)
-(* For each object o, minInstance[o] is the minimum available instance for *)
-(* commands accessing objects in the lease that o is currently in.         *)
+(* This process models a lease owner executing commands on the objects     *)
+(* that are part of its lease.                                             *)
 (*                                                                         *)
-(* The domain of leases is the set of created leases, and leases[l] is the *)
-(* set of objects of l.  The variable executed tracks the set of commands  *)
-(* which have been executed.                                               *)
+(* The condition 3 is specified in the definition LocalCorrectness(_)      *)
+(* below, while the full action is specified in Order(_).                  *)
 (***************************************************************************)
-VARIABLES decision, lease, minInstance, leases, executed
 
-TypeInvariant ==
-    /\ decision \in [Objects -> [Instances -> Commands \cup {None}]]
-    /\ lease \in [Objects -> LeaseId \cup {-1}]
-    /\ \A o \in Objects : minInstance[o] \in Nat
-    /\ \E L \in SUBSET LeaseId : leases \in [L -> SUBSET Objects]
-    /\ executed \in SUBSET Commands
-    
-Init ==
-    /\ decision = [o \in Objects |-> [i \in Instances |-> None]]
-    /\ lease = [o \in Objects |-> -1]
-    /\ minInstance = [o \in Objects |-> 1]
-    /\ leases = <<>>
-    /\ executed = {}
-
-(***************************************************************************)
-(* To use the definitions from the Correctness module, we need to obtain   *)
-(* per-object sequences of commands which do not contain any holes.        *)
-(***************************************************************************)
-Seqs(ds) == 
-    LET RemoveHoles(s) == SelectSeq(s, LAMBDA x : x # None)
-    IN [o \in Objects |-> RemoveHoles(ds[o])]
-
-MaxDecision(o) ==  LET Max(xs) == CHOOSE x \in xs : \A y \in xs : y <= x IN 
-    IF \E i \in Instances : decision[o][i] # None 
-    THEN Max({i \in Instances : decision[o][i] # None})
-    ELSE 0
-
-(***************************************************************************)
-(* The owner of a lease maintains the protocol correctness property while  *)
-(* the lease holds: if it decides c1 before c2 on object o1, then it       *)
-(* cannot decide c2 before c1 on object o2.  The definition below is used  *)
-(* in the Exec(_) action to assert this fact.                              *)
-(***************************************************************************)
 LocalCorrectness(l) ==
     LET view == [o \in Objects |-> 
-            IF o \in leases[l] /\ minInstance[o] # 0 /\ MaxDecision(o) # 0
-            THEN SubSeq(decision[o], minInstance[o], MaxDecision(o))
+        LET min == lease[o][2] 
+        IN  IF o \in LeaseObjects(l)
+            THEN SubSeq(instances[o], min, Len(instances[o]))
             ELSE <<>>]
-    IN  Correctness(Seqs(view))
+    IN  Correctness(view)
+
+(***************************************************************************)
+(* Leases can change at any time.  When the lease of object o changes, the *)
+(* minimum instance associated with the lease and object is set to the     *)
+(* sucessor of the largest instance that does not contain Unknown.         *)
+(* Moreover, all instances lower that the new minimum instance and that    *)
+(* contain unknown are updated to contain Aborted.                         *)
+(*                                                                         *)
+(* Lease change is specified in the definition Acquire(_) below.           *)
+(***************************************************************************)
+
+
+(***************************************************************************)
+(* A invariant describing the type of the variables.                       *)
+(***************************************************************************)
+TypeInvariant ==
+    /\ instances \in [Objects -> [Instances -> Commands \cup {Unknown, Aborted}]]
+    /\ lease \in [Objects -> LeaseId \times Instances]
+
+(***************************************************************************)
+(* The initial state.                                                      *)
+(***************************************************************************)
+ALease == CHOOSE l \in LeaseId : TRUE
+Init ==
+    /\ instances = [o \in Objects |-> [i \in Instances |-> Unknown]]
+    /\ lease = [o \in Objects |-> <<ALease, 1>>]
     
 (***************************************************************************)
-(* The Acquire action.  Acquires a lease on the objects objs, setting      *)
-(* minInstance[o], for every o in objs, to the maximum position in o's     *)
-(* sequence that holds a decision.  This is used to prevent the reuse in a *)
-(* new lease of undecided position smaller than the max decided position   *)
-(* of a previous lease.                                                    *)
+(* The Acquire action.                                                     *)
 (***************************************************************************)
+AbortUnknown(s, min) ==
+    [i \in DOMAIN s |-> 
+        IF i < min /\ s[i] = Unknown
+        THEN Aborted
+        ELSE s[i]]
+
 Acquire(objs) == 
-    /\ \A l \in DOMAIN leases : \neg objs \subseteq leases[l]
-    /\ \E l \in LeaseId \ DOMAIN leases : 
+    \* /\ \A l \in ActiveLeases : \neg objs \subseteq LeaseObjects(l)
+    /\ \E l \in LeaseId \ ActiveLeases : 
         /\ lease' = [o \in Objects |->
-            IF o \in objs THEN l ELSE lease[o]]
-        /\ leases' = leases ++ <<l, objs>> 
-    /\ minInstance' = [o \in Objects |-> 
-        IF o \in objs THEN MaxDecision(o)+1 ELSE minInstance[o]]
-    /\ UNCHANGED <<decision, executed>>
+            IF o \in objs THEN
+                LET is == {i \in Instances : instances[o][i] \in Commands}
+                    min == 
+                        IF is # {} 
+                        THEN Max(is, LAMBDA i,j : i <= j)
+                        ELSE 1 
+                IN  <<l,min>> 
+            ELSE lease[o]]
+    /\ instances' = [o \in Objects |-> AbortUnknown(instances[o], lease'[o][2])]
 
 
 (***************************************************************************)
 (* A command c is executed if there is a lease on a superset of its        *)
 (* accessed objects.                                                       *)
 (***************************************************************************)
-Exec(c) == \E l \in DOMAIN leases :
-    /\ c \notin executed
-    /\ \A o \in AccessedBy(c) : lease[o] = l
+Exec(c) == \E l \in ActiveLeases :
+    /\ AccessedBy(c) \subseteq LeaseObjects(l)
     \* Choose one instance per accessed object where c will be decided:
     /\ \E is \in [AccessedBy(c) -> Instances] :
         /\ \A o \in AccessedBy(c) :
-            /\ is[o] >= minInstance[o]
-            /\ decision[o][is[o]] = None
-        /\ decision' = [o \in Objects |->
-               IF o \notin AccessedBy(c) THEN decision[o]
-               ELSE [decision[o] EXCEPT ![is[o]] = c]]  
-    /\ executed' = executed \cup {c}
-    /\ UNCHANGED <<lease, leases, minInstance>>
+            /\ is[o] >= lease[o][2]
+            /\ instances[o][is[o]] = Unknown
+        /\ instances' = [o \in Objects |->
+               IF o \notin AccessedBy(c) THEN instances[o]
+               ELSE [instances[o] EXCEPT ![is[o]] = c]]
+    /\ UNCHANGED lease
     \* Ensure that a lease owner does not create cycles on its own:
     /\ LocalCorrectness(l)'
     
@@ -125,15 +163,11 @@ Next ==
     \/  \E objs \in ToAcquire : Acquire(objs)
     \/  \E c \in Commands : Exec(c)
 
-Spec == Init /\ [][Next]_<<decision, lease, minInstance, leases, executed>>
-    
-Invariant1 == \A o \in Objects : lease[o] \in LeaseId => o \in leases[lease[o]]
+Spec == Init /\ [][Next]_<<lease, instances>>
 
-THEOREM Spec => []Invariant1
-
-THEOREM Spec => []Correctness2(Seqs(decision))
+THEOREM Spec => []Correctness(instances)
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 10:56:12 EDT 2016 by nano
+\* Last modified Fri Jun 10 16:11:05 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano

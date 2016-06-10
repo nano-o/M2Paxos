@@ -123,13 +123,13 @@ GlobalMap(gs) ==
         ObjSeqs(o) == {s[o] : s \in {gs[x] : x \in DOMAIN gs}}
     IN [o \in Objects |-> MaxSeq(ObjSeqs(o))]
 
-(****************************************************************************
-Correctness of the global state:
-
-    1)  Every replica has a well-formed local object-sequence map;
-    2)  For each object, all replicas agree on a total order of commands;
-    3)  The global object-sequence map is acyclic.
-****************************************************************************)
+(***************************************************************************)
+(* Correctness of the global state:                                        *)
+(*                                                                         *)
+(*     1)  Every replica has a well-formed local object-sequence map;      *)
+(*     2)  For each object, all replicas agree on a total order of commands; *)
+(*     3)  The global object-sequence map is acyclic.                      *)
+(***************************************************************************)
 Correctness(gs) == 
     LET replicas == DOMAIN gs 
     IN  /\ \A r \in replicas : WellFormed(gs[r])
@@ -192,5 +192,5 @@ Correctness2(gs) ==
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 13:53:54 EDT 2016 by nano
+\* Last modified Fri Jun 10 16:07:42 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
