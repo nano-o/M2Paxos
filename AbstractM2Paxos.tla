@@ -155,19 +155,20 @@ Exec(c) == \E l \in ActiveLeases :
     /\ UNCHANGED lease
     \* Ensure that a lease owner does not create cycles on its own:
     /\ LocalCorrectness(l)'
-    
-\* An under-approximation of what leases are useful to acquire
-ToAcquire == {AccessedBy(c) : c \in Commands} \cup {AccessedBy(c1) \cup AccessedBy(c2) : c1,c2 \in Commands}
 
 Next == 
-    \/  \E objs \in ToAcquire : Acquire(objs)
+    \/  \E objs \in SUBSET Objects : Acquire(objs)
     \/  \E c \in Commands : Exec(c)
 
 Spec == Init /\ [][Next]_<<lease, instances>>
 
 THEOREM Spec => []Correctness(instances)
 
+WeakCorrectness == \neg C!HasCycle(C!DependencyGraph(GlobalMap(instances)))
+
+THEOREM Spec => []WeakCorrectness
+
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 16:11:05 EDT 2016 by nano
+\* Last modified Fri Jun 10 16:34:03 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano

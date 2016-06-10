@@ -29,17 +29,18 @@
 <listEntry value="0\neg(decision[o1][1] = c1 /\ decision[o2][2] = c1 /\ decision[o2][1] = c2 /\ decision[o3][2] = c2 /\ decision[o3][1] = c3 /\ decision[o1][2] = c3)"/>
 <listEntry value="0Invariant1"/>
 <listEntry value="0C!Correctness(GlobalMap(instances))"/>
-<listEntry value="1Correctness(instances)"/>
+<listEntry value="1WeakCorrectness"/>
+<listEntry value="0\A o\in Objects : \A i1,i2 \in Instances :&#10;i1 # i2 /\ instances[o][i1] \in Commands /\ instances[o][i2] \in Commands =&gt; instances[o][i2] # instances[o][i1]"/>
 </listAttribute>
 <listAttribute key="modelCorrectnessProperties"/>
-<stringAttribute key="modelExpressionEval" value="C!Correctness(GlobalMap([o \in Objects |-&gt; [i \in Instances |-&gt; Unknown]]))"/>
+<stringAttribute key="modelExpressionEval" value=""/>
 <stringAttribute key="modelParameterActionConstraint" value=""/>
 <listAttribute key="modelParameterConstants">
 <listEntry value="Commands;;{c1, c2, c3};1;0"/>
 <listEntry value="Objects;;{o1, o2, o3};1;0"/>
 <listEntry value="AccessedBy;c:;CASE c = c1 -&gt; {o1, o2}&#10;[] c = c2 -&gt; {o2,o3}&#10;[] c = c3 -&gt; {o3,o1};0;0"/>
-<listEntry value="Instances;;1..2;0;0"/>
-<listEntry value="LeaseId;;0..3;0;0"/>
+<listEntry value="Instances;;1..3;0;0"/>
+<listEntry value="LeaseId;;0..1;0;0"/>
 </listAttribute>
 <stringAttribute key="modelParameterContraint" value=""/>
 <listAttribute key="modelParameterDefinitions">
