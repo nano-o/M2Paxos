@@ -119,7 +119,7 @@ IsGlobalState(gs) ==
 (* The global object-sequence map.                                         *)
 (***************************************************************************)
 GlobalMap(gs) ==
-    LET MaxSeq(ss) == CHOOSE s \in ss : \A t \in ss : Prefix(t,s)
+    LET MaxSeq(ss) == CHOOSE s \in ss : \A t \in ss : Len(t) <= Len(s)
         ObjSeqs(o) == {s[o] : s \in {gs[x] : x \in DOMAIN gs}}
     IN [o \in Objects |-> MaxSeq(ObjSeqs(o))]
 
@@ -192,5 +192,5 @@ Correctness2(gs) ==
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 16:07:42 EDT 2016 by nano
+\* Last modified Tue Jun 14 10:08:06 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
