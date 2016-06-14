@@ -96,24 +96,36 @@ WellFormed(map) ==
         o \in AccessedBy(c)
 
 (***************************************************************************)
-(* A command c1 depends on a command c2 if there is an object for which c1 *)
-(* appears before c2 in the object's sequence.  The dependency relation    *)
-(* can be seen as a graph.                                                 *)
+(* A command c1 depends on a command c2 if there is an object accessed by  *)
+(* both c1 and c2 for which c1 appears before c2 in the object's sequence, *)
+(* or c1 appears in the object sequence but not c2 (which will therefore   *)
+(* have to come after c1).  The dependency relation can be seen as a       *)
+(* graph.                                                                  *)
 (***************************************************************************)
 DependencyGraph(map) ==
     LET Vs == UNION {Image(map[o]) : o \in Objects}
         Es == {e \in Vs \X Vs : \E o \in Objects :
             LET s == map[o] IN \E i \in DOMAIN s :
-                /\ i # Len(s)
-                /\ s[i] = e[1]
-                /\ s[i+1] = e[2]}
+                \/  /\ i # Len(s)
+                    /\ s[i] = e[1]
+                    /\ s[i+1] = e[2]
+                \/  /\ o \in AccessedBy(e[2])  
+                    /\ s[i] = e[1]
+                    /\ e[2] \notin Image(s) }
     IN <<Vs, Es>>
+    
+(***************************************************************************)
+(* An object-sequence map is correct when its dependency graph has no      *)
+(* cycles.                                                                 *)
+(***************************************************************************)
+MapCorrectness(gm) == \neg HasCycle(DependencyGraph(gm))
 
 (***************************************************************************)
-(* A data structure describing the global state of the system.             *)
+(* The global system state associates to each replica node a local         *)
+(* object-sequence map.                                                    *)
 (***************************************************************************)
 IsGlobalState(gs) ==
-    \A s \in DOMAIN gs : s \in [Objects -> Seq(Commands)]
+    \A s \in DOMAIN gs : gs[s] \in [Objects -> Seq(Commands)]
 
 (***************************************************************************)
 (* The global object-sequence map.                                         *)
@@ -139,58 +151,7 @@ Correctness(gs) ==
             IN Prefix(s1,s2) \/ Prefix(s2,s1)
         /\  \neg HasCycle(DependencyGraph(GlobalMap(gs)))
 
-(***************************************************************************)
-(* A stronger correctness property, to avoid the situation in which we     *)
-(* have                                                                    *)
-(*                                                                         *)
-(*     replica1[o1] = <<c1>>                                               *)
-(*     replica1[o2] = <<c2>>                                               *)
-(*     replica2[o1] = <<c1>>                                               *)
-(*     replica2[o2] = <<c2>>                                               *)
-(*                                                                         *)
-(* This state still satisfies the correctness condition above but the      *)
-(* system would then deadlock: there is no way to extend the sequences     *)
-(* with c1 or c2 without violating the correctness condition.              *)
-(***************************************************************************)
-
-(***************************************************************************)
-(* A well-formed sequence map is complete when if the command c is in an   *)
-(* object's sequence, then for all objects o accessed by c, c is also in   *)
-(* o's sequence.                                                           *)
-(***************************************************************************)
-IsComplete(seqs) == \A c \in Commands : \A o1,o2 \in Objects :
-    /\ c \in Image(seqs[o1])
-    /\ o2 \in AccessedBy(c)
-    => c \in Image(seqs[o2])
-
-(***************************************************************************)
-(* Pointwise prefix on maps                                                *)
-(***************************************************************************)
-IsPrefix(seqs1, seqs2) ==
-    \A o \in Objects : Prefix(seqs1[o], seqs2[o])
-
-(***************************************************************************)
-(* A stronger correctness property:                                        *)
-(*                                                                         *)
-(*     1)  Every replica has a well-formed local object-sequence map;      *)
-(*     2)  For each object, all replicas agree on a total order of commands; *)
-(*     3)  The global object-sequence map can be extended to a correct and complete *)
-(*      sequence map.                                                      *)
-(***************************************************************************)
-Correctness2(gs) == 
-    LET replicas == DOMAIN gs 
-    IN  /\ \A r \in replicas : WellFormed(gs[r])
-        /\ \A o \in Objects : \A r1,r2 \in replicas :
-            LET s1 == gs[r1][o]
-                s2 == gs[r2][o]
-            IN Prefix(s1,s2) \/ Prefix(s2,s1)
-        /\ \E m \in [Objects -> Seq(Commands)] :
-            LET gm == GlobalMap(gs)
-            IN  /\ IsPrefix(gm,m)
-                /\ IsComplete(m)
-                /\ \neg HasCycle(DependencyGraph(m))
-
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 14 10:08:06 EDT 2016 by nano
+\* Last modified Tue Jun 14 11:34:50 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano
