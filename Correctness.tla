@@ -137,7 +137,6 @@ GlobalMap(gs) ==
 
 (***************************************************************************)
 (* Correctness of the global state:                                        *)
-(*                                                                         *)
 (*     1)  Every replica has a well-formed local object-sequence map;      *)
 (*     2)  For each object, all replicas agree on a total order of commands; *)
 (*     3)  The global object-sequence map is acyclic.                      *)
@@ -153,5 +152,5 @@ Correctness(gs) ==
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 14 11:34:50 EDT 2016 by nano
+\* Last modified Tue Jun 21 22:14:43 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano

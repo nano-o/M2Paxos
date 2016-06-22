@@ -1,11 +1,5 @@
 -------------------------- MODULE AbstractM2Paxos --------------------------
 
-(***************************************************************************)
-(* This spec might be fine, but how to implement it in practice? It seems  *)
-(* very tricky to acquire an new lease that is not a superset of existing  *)
-(* leases: how are started but undecided instances going to be completed?  *)
-(***************************************************************************)
-
 EXTENDS Objects, Maps, SequenceUtils, Integers, FiniteSets
 
 C == INSTANCE Correctness
@@ -22,32 +16,28 @@ C == INSTANCE Correctness
 
 (***************************************************************************)
 (* The algorithm maintains a sequence of instances per object, where an    *)
-(* instance can hold a command, or the special values Free.  The global *)
+(* instance can hold a command, or the special values Free.  The global    *)
 (* object-sequence map is obtained from the object-instances map by        *)
-(* truncating the sequence at the first Free value encountered, and     *)
-(* then removing duplicate commands.                                       *)
+(* truncating the sequence at the first Free value encountered, and then   *)
+(* removing duplicate commands.                                            *)
 (***************************************************************************)
 
 CONSTANT Instances
 ASSUME Instances = Nat \ {0} \/ \E i \in Nat : Instances = 1..i
 
 Free == CHOOSE x : x \notin Commands
-NoOp == CHOOSE x : x \notin Commands \cup {Free}
 
 (***************************************************************************)
-(* Truncate a sequence of instances right before the first Free value.  *)
+(* Truncate a sequence of instances right before the first Free value.     *)
 (***************************************************************************)
 RECURSIVE Truncate(_)
 Truncate(vs) ==
     IF vs = <<>> \/ Head(vs) = Free
     THEN <<>>
     ELSE <<Head(vs)>> \o Truncate(Tail(vs))
-    
-FilterNoOps(vs) ==
-    SelectSeq(vs, LAMBDA x : x # NoOp)
 
 ObjectSequenceMap(is) ==
-    [o \in Objects |-> RemDup(FilterNoOps(Truncate(is[o])))]
+    [o \in Objects |-> RemDup(Truncate(is[o]))]
 
 Correctness(is) == \neg C!HasCycle(C!DependencyGraph(ObjectSequenceMap(is)))
 
@@ -63,7 +53,7 @@ VARIABLE instances, lease
 (* A invariant describing the type of the variables.                       *)
 (***************************************************************************)
 TypeInvariant ==
-    /\ instances \in [Objects -> [Instances -> Commands \cup {Free, NoOp}]]
+    /\ instances \in [Objects -> [Instances -> Commands \cup {Free}]]
     /\ lease \in [Objects -> LeaseId]
 
 ActiveLeases == {l \in LeaseId : \E o \in Objects : lease[o] = l}
@@ -93,20 +83,12 @@ LocalCorrectness(l) ==
     IN  Correctness(view)
     
 (***************************************************************************)
-(* A lease is safe to break when:                                          *)
-(*     1)  for every object o in the lease and instance i, if instances[o][i] *)
-(*         holds a command, then for every other object o2 in the lease, then *)
-(*         instances[o2][i] holds a command;                               *)
-(*     2)  for every object o in the lease, instance i, and instance j < i, *)
-(*         if instances[o][i] holds a command, then instances[o][j] holds  *)
-(*         a command.                                                      *)
+(* A lease is safe to break when: for every object o in the lease,         *)
+(* instance i, and instance j < i, if instances[o][i] holds a command,     *)
+(* then instances[o][j] holds a command.                                   *)
 (***************************************************************************)
-
-Safe(l) == 
-    /\ \A o1,o2 \in LeaseObjects(l) : \A i \in Instances : 
-        (instances[o1][i] \in Commands) = (instances[o2][i] \in Commands)
-    /\ \A o \in  LeaseObjects(l) : \A i,j \in Instances :
-        i < j /\ instances[o][j] \in Commands => instances[o][i] \in Commands
+Safe(l) == \A o \in  LeaseObjects(l) : \A i,j \in Instances :
+    i < j /\ instances[o][j] \in Commands => instances[o][i] \in Commands
 
 (***************************************************************************)
 (* The initial state.                                                      *)
@@ -117,10 +99,13 @@ Init ==
     
 (***************************************************************************)
 (* A new lease on the set of objects objs can be acquired only when the    *)
-(* existing leases on those objects are safe.                              *)
+(* existing leases on those objects are safe.  Comment-out the first       *)
+(* conjunct to see what happens if we remove the restriction that only     *)
+(* safe leases may be broken.                                              *)
 (***************************************************************************)
 Acquire(objs) == 
-    /\ \A l \in ActiveLeases : LeaseObjects(l) \cap objs # {} => Safe(l)
+    /\ \A l \in ActiveLeases : 
+        LeaseObjects(l) \cap objs # LeaseObjects(l) => Safe(l)
     /\ \E l \in LeaseId \ ActiveLeases :
         /\ lease' = [o \in Objects |->
             IF o \in objs THEN l ELSE lease[o]]
@@ -152,5 +137,5 @@ THEOREM Spec => []Correctness(instances)
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jun 14 12:17:12 EDT 2016 by nano
+\* Last modified Wed Jun 22 15:28:04 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
