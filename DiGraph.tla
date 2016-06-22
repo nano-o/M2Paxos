@@ -1,9 +1,7 @@
 ------------------------------ MODULE DiGraph ------------------------------
 
 (***************************************************************************)
-(* A formalization of directed graphs.  Many definitions are recursive     *)
-(* because TLC can evaluate them more efficiently than their more          *)
-(* declarative counterpart (e.g.  CHOOSE x \in X : P(x)).                  *)
+(* A few notions related to directed graphs.                               *)
 (***************************************************************************)
 
 EXTENDS FiniteSets, Sequences, Naturals, Misc, SequenceUtils
@@ -43,5 +41,5 @@ HasCycle(G) ==
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 11:59:14 EDT 2016 by nano
+\* Last modified Wed Jun 22 16:56:37 EDT 2016 by nano
 \* Created Tue Jul 28 03:10:02 CEST 2015 by nano

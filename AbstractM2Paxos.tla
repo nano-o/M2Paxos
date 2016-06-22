@@ -40,7 +40,7 @@ Truncate(vs) ==
 ObjectCommandsMap(is) ==
     [o \in Objects |-> RemDup(Truncate(is[o]))]
 
-Correctness(is) == \neg C!HasCycle(C!DependencyGraph(ObjectCommandsMap(is)))
+Correctness(is) == C!MapCorrectness(ObjectCommandsMap(is))
 
 CONSTANT LeaseId
 ASSUME LeaseId \subseteq Nat
@@ -102,8 +102,11 @@ Init ==
 (***************************************************************************)
 (* A new lease on the set of objects objs can be acquired only when the    *)
 (* existing leases on those objects are safe.  Comment-out the first       *)
-(* conjunct to see what happens if we remove the restriction that only     *)
-(* safe leases may be broken.                                              *)
+(* conjunct and model-check to see what happens if we remove the           *)
+(* restriction that only safe leases may be broken.                        *)
+(*                                                                         *)
+(* This means that breaking a big lease requires making sure that there    *)
+(* are no "holes" in the sequences of values of the objects in the lease.  *)
 (***************************************************************************)
 Acquire(objs) == 
     /\ \A l \in ActiveLeases : 
@@ -114,12 +117,12 @@ Acquire(objs) ==
     /\ UNCHANGED instances
 
 (***************************************************************************)
-(* A command c is executed if there is a lease on a superset of its        *)
+(* A command c can be executed if there is a lease on a superset of its    *)
 (* accessed objects.                                                       *)
 (***************************************************************************)
 Exec(c) == \E l \in ActiveLeases :
     /\ AccessedBy(c) \subseteq LeaseObjects(l)
-    \* Choose one instance per accessed object where c will be decided:
+    \* Choose one free instance per accessed object and update it.
     /\ \E is \in [AccessedBy(c) -> Instances] :
         /\ \A o \in AccessedBy(c) : instances[o][is[o]] = Free
         /\ instances' = [o \in Objects |->
@@ -139,5 +142,5 @@ THEOREM Spec => []Correctness(instances)
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Jun 22 16:46:17 EDT 2016 by nano
+\* Last modified Wed Jun 22 16:58:31 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
