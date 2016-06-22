@@ -5,21 +5,22 @@ EXTENDS Objects, Maps, SequenceUtils, Integers, FiniteSets
 C == INSTANCE Correctness
 
 (***************************************************************************)
-(* In this module we specifies an algorithm describing how M2Paxos uses    *)
+(* In this module we specify an algorithm describing how M2Paxos uses      *)
 (* leases on objects to maintain the correctness property of the global    *)
-(* object-sequence map (defined in the Correctness module) while           *)
+(* object-commands map (defined in the Correctness module) while           *)
 (* repeatedly increasing the set of commands that can be executed by the   *)
 (* replicas.  This specification describes at an abstract level how leases *)
-(* and the global object-sequence map evolve, without any                  *)
+(* and the global object-commands map evolve, without any                  *)
 (* distributed-system model.                                               *)
 (***************************************************************************)
 
 (***************************************************************************)
-(* The algorithm maintains a sequence of instances per object, where an    *)
-(* instance can hold a command, or the special values Free.  The global    *)
-(* object-sequence map is obtained from the object-instances map by        *)
-(* truncating the sequence at the first Free value encountered, and then   *)
-(* removing duplicate commands.                                            *)
+(* The algorithm maintains for each object a sequence with values which    *)
+(* are commands or the special value Free (the object-values map).  Each   *)
+(* position in such a sequence is called an instance.  The global          *)
+(* object-commands map is obtained from the object-values map by           *)
+(* truncating every sequence of instances at the first Free value          *)
+(* encountered, and then removing duplicate commands.                      *)
 (***************************************************************************)
 
 CONSTANT Instances
@@ -36,17 +37,18 @@ Truncate(vs) ==
     THEN <<>>
     ELSE <<Head(vs)>> \o Truncate(Tail(vs))
 
-ObjectSequenceMap(is) ==
+ObjectCommandsMap(is) ==
     [o \in Objects |-> RemDup(Truncate(is[o]))]
 
-Correctness(is) == \neg C!HasCycle(C!DependencyGraph(ObjectSequenceMap(is)))
+Correctness(is) == \neg C!HasCycle(C!DependencyGraph(ObjectCommandsMap(is)))
 
-(***************************************************************************)
-(* At any moment in time, an object is part of a unique lease, lease[o].   *)
-(***************************************************************************)
 CONSTANT LeaseId
 ASSUME LeaseId \subseteq Nat
 
+(***************************************************************************)
+(* At any moment, an object is part of a unique lease, lease[o].  The      *)
+(* variable named instances is a map from object to sequence of instances. *)
+(***************************************************************************)
 VARIABLE instances, lease
 
 (***************************************************************************)
@@ -65,9 +67,9 @@ LeaseObjects(l) == {o \in Objects : lease[o] = l}
 (*     1)  all the objects that c accesses are part of the same lease;     *)
 (*     2)  instances[i[o]] holds value Free for all object accessed by     *)
 (*         the command;                                                    *)
-(*     3)  after the assignement, the object-sequence map obtained by      *)
-(*         restricting the global object-sequence map to the objects accessed *)
-(*         by c satisfies the correctness condition for object-sequences.  *)
+(*     3)  after the assignement, the object-commands map obtained by      *)
+(*         restricting the global object-commands map to the objects accessed *)
+(*         by c satisfies the correctness condition for object-commands.  *)
 (* This process models a lease owner executing commands on the objects     *)
 (* that are part of its lease.                                             *)
 (*                                                                         *)
@@ -137,5 +139,5 @@ THEOREM Spec => []Correctness(instances)
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Jun 22 15:28:04 EDT 2016 by nano
+\* Last modified Wed Jun 22 16:46:17 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
