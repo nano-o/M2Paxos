@@ -1,6 +1,14 @@
 ---------------------------- MODULE Correctness ----------------------------
 
 (***************************************************************************)
+(* TODO: the multi-replica point of view may be confusing.  In M2Paxos the *)
+(* blocking situation cannot happen because a command is chosen on all its *)
+(* objects or none.  Why not instead write a temporal spec describing only *)
+(* the evolution of the global object-commands map, so the we can check    *)
+(* refinement to it?                                                       *)
+(***************************************************************************)
+
+(***************************************************************************)
 (* We are interested in implementing State-Machine Replication (SMR)       *)
 (* accross multiple replicas communicating in an asynchronous network.     *)
 (* Each replica has a copy of the same state machine, which accepts        *)
@@ -153,5 +161,5 @@ Correctness(gs) ==
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Jun 22 16:43:11 EDT 2016 by nano
+\* Last modified Fri Jun 24 16:30:54 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano

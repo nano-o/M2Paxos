@@ -194,7 +194,7 @@ Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases, lease>>
 (* This theorem does not hold because a quorum of votes can form after     *)
 (* some members of the quorum departed from the corresponding lease.  To   *)
 (* fix that, we would need to track leases by instance, and not only by    *)
-(* object.                                                                 *)
+(* object.  We could also introduce a prophecy variable...                 *)
 (***************************************************************************)
 THEOREM Spec => A!Spec
 
@@ -205,5 +205,5 @@ THEOREM Spec => []A!Safety
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 16:13:26 EDT 2016 by nano
+\* Last modified Fri Jun 24 16:24:50 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano
