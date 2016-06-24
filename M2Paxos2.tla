@@ -5,7 +5,7 @@
 (* several MultiPaxos instances (one per object).                          *)
 (***************************************************************************)
 
-EXTENDS Sequences, Objects, FiniteSets, Integers, Maps
+EXTENDS Sequences, Objects, FiniteSets, Integers, Maps, TLC
 
 CONSTANT Acceptors, Quorums, MaxBallot, MaxInstance, LeaseId
 
@@ -41,11 +41,12 @@ VARIABLES
     ballots, votes, leases, proposals
 
 TypeInvariant ==
-    /\  ballots \in [Acceptors -> [Objects -> Ballots]]
+    /\  ballots \in [Acceptors -> [Objects -> Ballots \cup {-1}]]
     /\  votes \in [Acceptors -> [Objects ->
-            [Instances -> [Ballots -> Commands]]]]
-    /\  \E L \in SUBSET LeaseId : leases \in [L ->
-            {[D -> Ballots] : D \in SUBSET Objects}]
+            [Instances -> [Ballots -> Commands \cup {NotACommand}]]]]
+    /\  \E L \in (SUBSET LeaseId) \ {} : 
+            \A l \in L : \E D \in (SUBSET Objects) \ {} : 
+                \A o \in D : leases[l][o] \in Ballots
     /\  \A p \in proposals : IsProposal(p) 
 
 (***************************************************************************)
@@ -62,7 +63,7 @@ Inv1 == \A p \in proposals :
 Init ==
     /\  ballots = [a \in Acceptors |-> [o \in Objects |-> -1]]
     /\  votes = [a \in Acceptors |-> [o \in Objects |->
-            [i \in Instances |-> [b \in Ballots |-> None(Commands)]]]]
+            [i \in Instances |-> [b \in Ballots |-> NotACommand]]]]
     /\  leases = <<>>
     /\  proposals = {}
 
@@ -107,11 +108,12 @@ Active(l) == \E Q \in Quorums : \A a \in Q : IsLocalActiveLease(l, a)
 (***************************************************************************)
 Get(S, P(_)) == IF \E x \in S : P(x) THEN CHOOSE x \in S : P(x) ELSE None(S)
  
+(*
 A == INSTANCE AbstractM2Paxos WITH
     instances <- [o \in Objects |-> [i \in Instances |-> 
         Get(Commands, LAMBDA c : Chosen(o, i, c))]],
     lease <- [o \in Objects |-> 
-        Get(LeaseId, LAMBDA l : o \in DOMAIN leases[l] /\ Active(l))]
+        Get(LeaseId, LAMBDA l : o \in DOMAIN leases[l] /\ Active(l))] *)
 
 (***************************************************************************)
 (* Create a lease on an arbitrary non-empty set of objects with arbitrary  *)
@@ -119,8 +121,11 @@ A == INSTANCE AbstractM2Paxos WITH
 (***************************************************************************)
 NewLease(l) ==
     /\ l \notin DOMAIN leases
-    /\ \E os \in SUBSET Objects \ {} : \E bs \in [os -> Ballots] :
-        leases' = leases ++ <<l, bs>>
+    /\ \E os \in (SUBSET Objects) \ {} : \E bs \in [os -> Ballots] :
+        \* A lease own a ballot exclusively:
+        /\ \A l2 \in DOMAIN leases : \A o \in os : 
+            o \in DOMAIN leases[l2] => leases[l2][o] # bs[o]
+        /\ leases' = leases ++ <<l, bs>>
     /\ UNCHANGED <<ballots, votes, proposals>>
     
 (***************************************************************************)
@@ -128,7 +133,7 @@ NewLease(l) ==
 (***************************************************************************)
 AcceptLease(a, l) ==
     /\ l \in DOMAIN leases
-    /\ \A o \in DOMAIN leases[l] : ballots[o][a] < leases[l][o]
+    /\ \A o \in DOMAIN leases[l] : ballots[a][o] < leases[l][o]
     /\ ballots' = [ballots EXCEPT ![a] = [o \in Objects |->
         IF o \in DOMAIN leases[l]
         THEN leases[l][o]
@@ -138,6 +143,7 @@ AcceptLease(a, l) ==
     
 Propose(c, l) ==
     /\ l \in DOMAIN leases
+    /\ \A o \in AccessedBy(c) : o \in DOMAIN leases[l]
     /\ \A p \in proposals : Lease(p) = l => Command(p) # c
     \* Wait for all other proposals in the same lease to be executed.
     /\ \A p \in proposals : Lease(p) = l => ExecutedWithLease(Command(p), l)
@@ -153,7 +159,8 @@ Vote(a) ==
         /\ \A o \in DOMAIN Slots(p) : ballots[a][o] = leases[Lease(p)][o]
         /\ votes' = [votes EXCEPT ![a] = [o \in Objects |->
             IF o \in AccessedBy(Command(p))
-            THEN [votes[a][o] EXCEPT ![Slots(p)[o]] = Command(p)]
+            THEN [votes[a][o] EXCEPT ![Slots(p)[o]] = 
+                [@ EXCEPT ![ballots[a][o]] = Command(p)]]
             ELSE votes[a][o]]]
     /\ UNCHANGED <<ballots, leases, proposals>>
     
@@ -167,5 +174,5 @@ Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases>>
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 13:13:05 EDT 2016 by nano
+\* Last modified Fri Jun 24 13:42:23 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano
