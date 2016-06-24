@@ -166,8 +166,9 @@ Propose(c, l) ==
     /\ \A p \in proposals : Lease(p) = l => ExecutedWithLease(Command(p), l)
     \* Choose an instance for every object accessed by c, leaving no holes:
     /\ \E is \in [AccessedBy(c) -> Instances] :
-        /\ \A o \in AccessedBy(c) : \A i \in Instances : i < is[o] =>
-            \E c2 \in Commands : Chosen(o, i, c2)
+        /\ \A o \in AccessedBy(c) : \A i \in Instances : 
+            /\ i < is[o] => \E c2 \in Commands : Chosen(o, i, c2)
+            /\ TRUE \* TODO: what about the chosen instance? Here we need the max-ballot rule of Paxos.
         /\ proposals' = proposals \cup {<<c,is,l>>}
     /\  UNCHANGED <<ballots, votes, leases, lease>>
                       
@@ -204,5 +205,5 @@ THEOREM Spec => []A!Safety
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 16:09:05 EDT 2016 by nano
+\* Last modified Fri Jun 24 16:13:26 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano
