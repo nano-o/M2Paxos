@@ -111,8 +111,11 @@ Acquire(objs) ==
     /\ \A l \in ActiveLeases : 
         LeaseObjects(l) \cap objs # LeaseObjects(l) => Safe(l)
     /\ \E l \in LeaseId \ ActiveLeases :
-        /\ lease' = [o \in DOMAIN lease \cup objs |->
-            IF o \in objs THEN l ELSE lease[o]]
+        LET broken == {lease[o] : o \in objs \cap DOMAIN lease}
+            leased == (DOMAIN lease \ UNION {LeaseObjects(l2) : l2 \in broken})
+                \cup objs
+        IN
+            lease' = [o \in leased |-> IF o \in objs THEN l ELSE lease[o]]
     /\ UNCHANGED instances
     
 (***************************************************************************)
@@ -143,9 +146,11 @@ Next ==
 
 Spec == Init /\ [][Next]_<<lease, instances>>
 
-THEOREM Spec => []Correctness(instances)
+Safety == Correctness(instances)
+
+THEOREM Spec => []Safety
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 14:26:15 EDT 2016 by nano
+\* Last modified Fri Jun 24 15:50:22 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano

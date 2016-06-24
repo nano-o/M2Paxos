@@ -39,6 +39,10 @@ IsProposal(p) ==
 
 VARIABLES
     ballots, votes, leases, proposals
+(***************************************************************************)
+(* A ghost variable for the refinement:                                    *)
+(***************************************************************************)
+VARIABLE lease
 
 TypeInvariant ==
     /\  ballots \in [Acceptors -> [Objects -> Ballots \cup {-1}]]
@@ -48,6 +52,7 @@ TypeInvariant ==
             \A l \in L : \E D \in (SUBSET Objects) \ {} : 
                 \A o \in D : leases[l][o] \in Ballots
     /\  \A p \in proposals : IsProposal(p) 
+    /\  \E D \in SUBSET Objects : lease \in [D -> LeaseId]
 
 (***************************************************************************)
 (* Another invariant                                                       *)
@@ -66,6 +71,7 @@ Init ==
             [i \in Instances |-> [b \in Ballots |-> NotACommand]]]]
     /\  leases = <<>>
     /\  proposals = {}
+    /\  lease = <<>>
 
 (***************************************************************************)
 (* We now define a refinement mapping between the state of this            *)
@@ -99,21 +105,21 @@ ExecutedWithLease(c, l) == \E Q \in Quorums : \A a \in Q :
 (* A lease is valid if a quorum of acceptors have it locally.              *)
 (***************************************************************************) 
 IsLocalActiveLease(l, a) == 
-    \A o \in DOMAIN leases[l] : ballots[a][o] = leases[l][o]
+    /\  l \in DOMAIN leases
+    /\  \A o \in DOMAIN leases[l] : ballots[a][o] = leases[l][o]
 
 Active(l) == \E Q \in Quorums : \A a \in Q : IsLocalActiveLease(l, a)
 
 (***************************************************************************)
 (* The refinement.                                                         *)
 (***************************************************************************)
-ALease == [o \in Objects |-> Get(LeaseId, 
-    LAMBDA l : l \in DOMAIN leases /\ o \in DOMAIN leases[l] /\ Active(l), 0)]
+        
 AInstances == [o \in Objects |-> [i \in Instances |-> 
-        Get(Commands, LAMBDA c : Chosen(o, i, c), NotACommand)]]
+        IfExistsElse(Commands, LAMBDA c : Chosen(o, i, c), NotACommand)]]
         
 A == INSTANCE AbstractM2Paxos WITH
     instances <- AInstances,
-    lease <- ALease
+    lease <- lease
 
 (***************************************************************************)
 (* Create a lease on an arbitrary non-empty set of objects with arbitrary  *)
@@ -122,11 +128,12 @@ A == INSTANCE AbstractM2Paxos WITH
 NewLease(l) ==
     /\ l \notin DOMAIN leases
     /\ \E os \in (SUBSET Objects) \ {} : \E bs \in [os -> Ballots] :
+        /\ os # {}
         \* A lease own a ballot exclusively:
         /\ \A l2 \in DOMAIN leases : \A o \in os : 
             o \in DOMAIN leases[l2] => leases[l2][o] # bs[o]
         /\ leases' = leases ++ <<l, bs>>
-    /\ UNCHANGED <<ballots, votes, proposals>>
+    /\ UNCHANGED <<ballots, votes, proposals, lease>>
     
 (***************************************************************************)
 (* Accept a new lease l on a set of objects os.                            *)
@@ -139,6 +146,16 @@ AcceptLease(a, l) ==
         THEN leases[l][o]
         ELSE ballots[a][o]]]
     /\ UNCHANGED <<votes, proposals, leases>>
+    \* A ghost transition:
+    /\  IF Active(l)' /\ \neg Active(l)
+        THEN 
+            LET broken == {lease[o] : o \in DOMAIN lease \cap DOMAIN leases[l]}
+                leased == ((DOMAIN lease) \ (UNION {DOMAIN leases[l2] : l2 \in broken})) 
+                    \cup DOMAIN leases[l]
+            IN  lease' = [o \in leased |->
+                    IF o \in DOMAIN leases[l] THEN l
+                    ELSE lease[o]]
+        ELSE UNCHANGED lease
     \* TODO: what about breaking only safe leases? => not needed if we forbid running parallel instances on the same lease.
     
 Propose(c, l) ==
@@ -152,9 +169,9 @@ Propose(c, l) ==
         /\ \A o \in AccessedBy(c) : \A i \in Instances : i < is[o] =>
             \E c2 \in Commands : Chosen(o, i, c2)
         /\ proposals' = proposals \cup {<<c,is,l>>}
-    /\  UNCHANGED <<ballots, votes, leases>>
-    
-Vote(a) ==
+    /\  UNCHANGED <<ballots, votes, leases, lease>>
+                      
+Vote(a) == 
     /\ \E p \in proposals :
         /\ \A o \in DOMAIN Slots(p) : ballots[a][o] = leases[Lease(p)][o]
         /\ votes' = [votes EXCEPT ![a] = [o \in Objects |->
@@ -162,7 +179,7 @@ Vote(a) ==
             THEN [votes[a][o] EXCEPT ![Slots(p)[o]] = 
                 [@ EXCEPT ![ballots[a][o]] = Command(p)]]
             ELSE votes[a][o]]]
-    /\ UNCHANGED <<ballots, leases, proposals>>
+    /\ UNCHANGED <<ballots, leases, proposals, lease>>
     
 Next ==
     \/  \E l \in LeaseId : NewLease(l)
@@ -170,11 +187,22 @@ Next ==
     \/  \E c \in Commands : \E l \in LeaseId : Propose(c, l)
     \/  \E a \in Acceptors : Vote(a)
 
-Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases>>
+Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases, lease>>
 
+(***************************************************************************)
+(* This theorem does not hold because a quorum of votes can form after     *)
+(* some members of the quorum departed from the corresponding lease.  To   *)
+(* fix that, we would need to track leases by instance, and not only by    *)
+(* object.                                                                 *)
+(***************************************************************************)
 THEOREM Spec => A!Spec
+
+(***************************************************************************)
+(* This theorem does seem to hold however.                                 *)
+(***************************************************************************)
+THEOREM Spec => []A!Safety
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 14:18:20 EDT 2016 by nano
+\* Last modified Fri Jun 24 16:09:05 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano
