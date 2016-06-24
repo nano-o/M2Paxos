@@ -2,8 +2,6 @@
 
 EXTENDS Naturals
 
-None(S) == CHOOSE x : x \notin S
-
 Some(S) == CHOOSE e \in S : TRUE
 
 (***************************************************************************)
@@ -16,7 +14,9 @@ Min(i,j) == IF i < j THEN i ELSE j
 
 Max(S, LessEq(_,_)) == CHOOSE e \in S : \A e1 \in S : LessEq(e1,e)
 
+Get(S, P(_), d) == IF \E x \in S : P(x) THEN CHOOSE x \in S : P(x) ELSE d
+
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 10 13:53:02 EDT 2016 by nano
+\* Last modified Fri Jun 24 14:08:53 EDT 2016 by nano
 \* Created Thu Feb 04 16:55:11 EST 2016 by nano

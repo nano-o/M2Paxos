@@ -1,6 +1,6 @@
 -------------------------- MODULE AbstractM2Paxos --------------------------
 
-EXTENDS Objects, Maps, SequenceUtils, Integers, FiniteSets
+EXTENDS Objects, Maps, SequenceUtils, Integers, FiniteSets, TLC
 
 C == INSTANCE Correctness
 
@@ -16,24 +16,22 @@ C == INSTANCE Correctness
 
 (***************************************************************************)
 (* The algorithm maintains for each object a sequence with values which    *)
-(* are commands or the special value Free (the object-values map).  Each   *)
+(* are commands or the special value NotACommand (the object-values map).  Each   *)
 (* position in such a sequence is called an instance.  The global          *)
 (* object-commands map is obtained from the object-values map by           *)
-(* truncating every sequence of instances at the first Free value          *)
+(* truncating every sequence of instances at the first NotACommand value          *)
 (* encountered, and then removing duplicate commands.                      *)
 (***************************************************************************)
 
 CONSTANT Instances
 ASSUME Instances = Nat \ {0} \/ \E i \in Nat : Instances = 1..i
 
-Free == CHOOSE x : x \notin Commands
-
 (***************************************************************************)
-(* Truncate a sequence of instances right before the first Free value.     *)
+(* Truncate a sequence of instances right before the first NotACommand value.     *)
 (***************************************************************************)
 RECURSIVE Truncate(_)
 Truncate(vs) ==
-    IF vs = <<>> \/ Head(vs) = Free
+    IF vs = <<>> \/ Head(vs) = NotACommand
     THEN <<>>
     ELSE <<Head(vs)>> \o Truncate(Tail(vs))
 
@@ -55,17 +53,18 @@ VARIABLE instances, lease
 (* A invariant describing the type of the variables.                       *)
 (***************************************************************************)
 TypeInvariant ==
-    /\ instances \in [Objects -> [Instances -> Commands \cup {Free}]]
-    /\ lease \in [Objects -> LeaseId]
+    /\ instances \in [Objects -> [Instances -> Commands \cup {NotACommand}]]
+    /\ \E D \in SUBSET Objects : lease \in [D -> LeaseId]
 
-ActiveLeases == {l \in LeaseId : \E o \in Objects : lease[o] = l}
-LeaseObjects(l) == {o \in Objects : lease[o] = l}
+ActiveLeases == {l \in LeaseId : \E o \in Objects : 
+    o \in DOMAIN lease /\ lease[o] = l}
+LeaseObjects(l) == {o \in Objects : o \in DOMAIN lease /\ lease[o] = l}
 
 (***************************************************************************)
 (* A command c can be assigned to a set of instances {i[o] : o \in         *)
 (* Objects}, one per object it accesses, when:                             *)
 (*     1)  all the objects that c accesses are part of the same lease;     *)
-(*     2)  instances[i[o]] holds value Free for all object accessed by     *)
+(*     2)  instances[i[o]] holds value NotACommand for all object accessed by     *)
 (*         the command;                                                    *)
 (*     3)  after the assignement, the object-commands map obtained by      *)
 (*         restricting the global object-commands map to the objects accessed *)
@@ -96,8 +95,8 @@ Safe(l) == \A o \in  LeaseObjects(l) : \A i,j \in Instances :
 (* The initial state.                                                      *)
 (***************************************************************************)
 Init ==
-    /\ instances = [o \in Objects |-> [i \in Instances |-> Free]]
-    /\ lease \in [Objects -> LeaseId]
+    /\ instances = [o \in Objects |-> [i \in Instances |-> NotACommand]]
+    /\ lease = <<>>
     
 (***************************************************************************)
 (* A new lease on the set of objects objs can be acquired only when the    *)
@@ -112,25 +111,31 @@ Acquire(objs) ==
     /\ \A l \in ActiveLeases : 
         LeaseObjects(l) \cap objs # LeaseObjects(l) => Safe(l)
     /\ \E l \in LeaseId \ ActiveLeases :
-        /\ lease' = [o \in Objects |->
+        /\ lease' = [o \in DOMAIN lease \cup objs |->
             IF o \in objs THEN l ELSE lease[o]]
     /\ UNCHANGED instances
-
+    
 (***************************************************************************)
 (* A command c can be executed if there is a lease on a superset of its    *)
 (* accessed objects.                                                       *)
 (***************************************************************************)
 Exec(c) == \E l \in ActiveLeases :
     /\ AccessedBy(c) \subseteq LeaseObjects(l)
-    \* Choose one free instance per accessed object and update it.
+    \* Choose one NotACommand instance per accessed object and update it.
     /\ \E is \in [AccessedBy(c) -> Instances] :
-        /\ \A o \in AccessedBy(c) : instances[o][is[o]] = Free
+        /\ \A o \in AccessedBy(c) : instances[o][is[o]] = NotACommand
         /\ instances' = [o \in Objects |->
                IF o \notin AccessedBy(c) THEN instances[o]
                ELSE [instances[o] EXCEPT ![is[o]] = c]]
     /\ UNCHANGED lease
     \* Ensure that a lease owner does not create cycles on its own:
     /\ LocalCorrectness(l)'
+    
+(***************************************************************************)
+(* Could we drop the "lease breaking" restriction if we required that no   *)
+(* "artificial" holes be introduced in a lease? No really, because in the  *)
+(* real system an instance can always fail and leave a hole.               *)
+(***************************************************************************)
 
 Next == 
     \/  \E objs \in SUBSET Objects : Acquire(objs)
@@ -142,5 +147,5 @@ THEOREM Spec => []Correctness(instances)
 
 =============================================================================
 \* Modification History
-\* Last modified Wed Jun 22 16:58:31 EDT 2016 by nano
+\* Last modified Fri Jun 24 14:26:15 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
