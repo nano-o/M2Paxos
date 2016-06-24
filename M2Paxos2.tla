@@ -106,14 +106,14 @@ Active(l) == \E Q \in Quorums : \A a \in Q : IsLocalActiveLease(l, a)
 (***************************************************************************)
 (* The refinement.                                                         *)
 (***************************************************************************)
-Get(S, P(_)) == IF \E x \in S : P(x) THEN CHOOSE x \in S : P(x) ELSE None(S)
- 
-(*
+ALease == [o \in Objects |-> Get(LeaseId, 
+    LAMBDA l : l \in DOMAIN leases /\ o \in DOMAIN leases[l] /\ Active(l), 0)]
+AInstances == [o \in Objects |-> [i \in Instances |-> 
+        Get(Commands, LAMBDA c : Chosen(o, i, c), NotACommand)]]
+        
 A == INSTANCE AbstractM2Paxos WITH
-    instances <- [o \in Objects |-> [i \in Instances |-> 
-        Get(Commands, LAMBDA c : Chosen(o, i, c))]],
-    lease <- [o \in Objects |-> 
-        Get(LeaseId, LAMBDA l : o \in DOMAIN leases[l] /\ Active(l))] *)
+    instances <- AInstances,
+    lease <- ALease
 
 (***************************************************************************)
 (* Create a lease on an arbitrary non-empty set of objects with arbitrary  *)
@@ -172,7 +172,9 @@ Next ==
 
 Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases>>
 
+THEOREM Spec => A!Spec
+
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 13:42:23 EDT 2016 by nano
+\* Last modified Fri Jun 24 14:18:20 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano
