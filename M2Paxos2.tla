@@ -111,17 +111,6 @@ IsLocalActiveLease(l, a) ==
 Active(l) == \E Q \in Quorums : \A a \in Q : IsLocalActiveLease(l, a)
 
 (***************************************************************************)
-(* The refinement.                                                         *)
-(***************************************************************************)
-        
-AInstances == [o \in Objects |-> [i \in Instances |-> 
-        IfExistsElse(Commands, LAMBDA c : Chosen(o, i, c), NotACommand)]]
-        
-A == INSTANCE AbstractM2Paxos WITH
-    instances <- AInstances,
-    lease <- lease
-
-(***************************************************************************)
 (* Create a lease on an arbitrary non-empty set of objects with arbitrary  *)
 (* ballots.                                                                *)
 (***************************************************************************)
@@ -157,7 +146,17 @@ AcceptLease(a, l) ==
                     ELSE lease[o]]
         ELSE UNCHANGED lease
     \* TODO: what about breaking only safe leases? => not needed if we forbid running parallel instances on the same lease.
-    
+
+SafeVotes(Q, o, i) ==
+    LET bals == {b \in Ballots : \E a \in Q : votes[a][o][i][b] \in Commands}
+    IN  IF bals # {}
+        THEN 
+            LET
+                maxBal == Max(bals, LAMBDA x,y : x <= y)
+                maxAcc == CHOOSE a \in Q : votes[a][o][i][maxBal] \in Commands
+            IN {votes[maxAcc][o][i][maxBal]}
+        ELSE Commands
+
 Propose(c, l) ==
     /\ l \in DOMAIN leases
     /\ \A o \in AccessedBy(c) : o \in DOMAIN leases[l]
@@ -167,14 +166,14 @@ Propose(c, l) ==
     \* Choose an instance for every object accessed by c, leaving no holes:
     /\ \E is \in [AccessedBy(c) -> Instances] :
         /\ \A o \in AccessedBy(c) : \A i \in Instances : 
-            /\ i < is[o] => \E c2 \in Commands : Chosen(o, i, c2)
-            /\ TRUE \* TODO: what about the chosen instance? Here we need the max-ballot rule of Paxos.
+            /\ i < is[o] => \E c2 \in Commands : Chosen(o, i, c2) \* Leave no gaps.
+            /\ i = is[o] => \E Q \in Quorums : c \in SafeVotes(Q, o, i) \* the Paxos rule for proposing commands.
         /\ proposals' = proposals \cup {<<c,is,l>>}
     /\  UNCHANGED <<ballots, votes, leases, lease>>
                       
 Vote(a) == 
     /\ \E p \in proposals :
-        /\ \A o \in DOMAIN Slots(p) : ballots[a][o] = leases[Lease(p)][o]
+        /\ IsLocalActiveLease(Lease(p), a)
         /\ votes' = [votes EXCEPT ![a] = [o \in Objects |->
             IF o \in AccessedBy(Command(p))
             THEN [votes[a][o] EXCEPT ![Slots(p)[o]] = 
@@ -191,6 +190,16 @@ Next ==
 Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases, lease>>
 
 (***************************************************************************)
+(* A tenative refinement to AbstractM2Paxos.  See below for why it cannot  *)
+(* work.                                                                   *)
+(***************************************************************************)
+AInstances == [o \in Objects |-> [i \in Instances |->
+        IfExistsElse(Commands, LAMBDA c : Chosen(o, i, c), NotACommand)]]
+        
+A == INSTANCE AbstractM2Paxos WITH
+    instances <- AInstances,
+    lease <- lease
+(***************************************************************************)
 (* This theorem does not hold because a quorum of votes can form after     *)
 (* some members of the quorum departed from the corresponding lease.  To   *)
 (* fix that, we would need to track leases by instance, and not only by    *)
@@ -199,11 +208,13 @@ Spec == Init /\ [][Next]_<<ballots, votes, proposals, leases, lease>>
 THEOREM Spec => A!Spec
 
 (***************************************************************************)
-(* This theorem does seem to hold however.                                 *)
+(* A refinement to the Correctness Spec.                                   *)
 (***************************************************************************)
-THEOREM Spec => []A!Safety
-
+C == INSTANCE Correctness WITH
+    Replica <- Acceptors,
+    replicaState <- FALSE
+    
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 16:24:50 EDT 2016 by nano
+\* Last modified Mon Jun 27 12:30:57 EDT 2016 by nano
 \* Created Mon Jun 06 13:48:20 EDT 2016 by nano

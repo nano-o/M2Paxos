@@ -1,14 +1,6 @@
 ---------------------------- MODULE Correctness ----------------------------
 
 (***************************************************************************)
-(* TODO: the multi-replica point of view may be confusing.  In M2Paxos the *)
-(* blocking situation cannot happen because a command is chosen on all its *)
-(* objects or none.  Why not instead write a temporal spec describing only *)
-(* the evolution of the global object-commands map, so the we can check    *)
-(* refinement to it?                                                       *)
-(***************************************************************************)
-
-(***************************************************************************)
 (* We are interested in implementing State-Machine Replication (SMR)       *)
 (* accross multiple replicas communicating in an asynchronous network.     *)
 (* Each replica has a copy of the same state machine, which accepts        *)
@@ -19,7 +11,7 @@
 (*                                                                         *)
 (*     1)  ensure that if two replicas produce an output at position i in  *)
 (*         their sequence of outputs, then the output is the same;         *)
-(*     2)  if new commands to be accepted keep coming, the every replica   *)
+(*     2)  if new commands to be accepted keep coming, then every replica  *)
 (*         that does not fail keeps producing new outputs.                 *)
 (*                                                                         *)
 (* Here we are concerned with requirement 1.                               *)
@@ -27,7 +19,7 @@
 (* One way to meet requirement 1 is to have each replica execute requests  *)
 (* in a unique total order, e.g.  like in the Multi-Paxos algorithm.       *)
 (* However, sometime the order in which two or more commands are executed  *)
-(* does not influence their output or the output of any future commands;   *)
+(* does not influence their output and the output of any future commands;  *)
 (* we say that such commands commute.  By allowing different replicas to   *)
 (* execute commuting commands in a different order, an SMR algorithm might *)
 (* improve its performance compared to Multi-Paxos.  This is our goal with *)
@@ -52,11 +44,13 @@
 (* in those sequences have been executed, then c can be executed.          *)
 (*                                                                         *)
 (* However, ensuring a total order per object is not sufficient to meet    *)
-(* requirement 1 because commands that do not commute must be execute in   *)
-(* the same total order by all replicas.  For example, consider two        *)
-(* objects o1 and o2 and two commands c1 and c2 that access both objects.  *)
-(* Also consider two replicas and a global system state in which replica 1 *)
-(* computed the following sequences for object o1 and o2:                  *)
+(* requirement 1 because commands accessing overlapping sets of objects    *)
+(* must have a consistent order across their common objects.               *)
+(*                                                                         *)
+(* For example, consider two objects o1 and o2 and two commands c1 and c2  *)
+(* that access both objects.  Also consider two replicas and a global      *)
+(* system state (example 1) in which replica 1 computed the following      *)
+(* sequences for object o1 and o2:                                         *)
 (*     replica1[o1] = <<c1,c2>>                                            *)
 (*     replica1[o2] = <<c2>>                                               *)
 (* while replica 2 computed the following sequences for object o1 and o2:  *)
@@ -65,20 +59,24 @@
 (* In this situation, for each object, the sequence of the replicas are    *)
 (* both prefix of the same total order (<<c1,c2>> for o1 and <<c2,c1>> for *)
 (* o2).  However, according to the rule for execution, replica 1 may       *)
-(* execute c1 then c2, while replica 2 may execute c2 then c1, potentially *)
-(* violating requirement 1.                                                *)
+(* execute c1 before c2, while replica 2 may execute c2 before c1,         *)
+(* potentially violating requirement 1.                                    *)
 (*                                                                         *)
 (* Also, according to the execution rule, a replica in the following       *)
-(* configuration can execute neither c1 nor c2.                            *)
+(* configuration (example 2) can execute neither c1 nor c2 because c1 and  *)
+(* c2 for a dependency cycle.                                              *)
 (*     replica2[o1] = <<c1,c2>>                                            *)
 (*     replica2[o2] = <<c2,c1>>                                            *)
 (*                                                                         *)
 (* M2Paxos therefore enforces an additional property of the per-object     *)
-(* sequences that replicas build.  Define the global object-commands map   *)
-(* of the system as the mapping an object o to the longest sequence than   *)
-(* any replica has in its local map for o.  Moreover, given two commands   *)
-(* c1 and c2, we say that c1 depends on c2 if c2 appears before c1 in the  *)
-(* sequence of one object in the global objec-sequence map.  M2Paxos       *)
+(* sequences that replicas build.  Given two commands c1 and c2 and an     *)
+(* object-commands map, we say that c1 depends on c2 if c2 appears before  *)
+(* c1 in the sequence of any object in the map.  We can prevent the        *)
+(* situation in example 2 by requiring that the dependency relation built  *)
+(* from any replica's object-commands map be acyclic.  However, this does  *)
+(* not rule at the situation in example 1.  To rule it out, define the     *)
+(* global object-commands map of the system as mapping an object o to the  *)
+(* longest sequence than any replica has in its local map for o.  M2Paxos  *)
 (* ensures that the dependency relation given by the global                *)
 (* object-commands map is acyclic.  This guarantees that if replicas       *)
 (* follow the execution rule, then every two commands that do not commute  *)
@@ -99,7 +97,7 @@ INSTANCE DiGraph
 (* in the set of objects accessed by c.                                    *)
 (***************************************************************************)
 WellFormed(map) ==
-    /\ map \in [Objects -> Seq(Commands)]
+    /\ map \in [Objects -> Seq(Commands \cup {NotACommand})]
     /\ \A o \in Objects : NoDup(map[o])
     /\ \A o \in Objects : \A c \in Image(map[o]) :
         o \in AccessedBy(c)
@@ -112,13 +110,13 @@ WellFormed(map) ==
 (* graph.                                                                  *)
 (***************************************************************************)
 DependencyGraph(map) ==
-    LET Vs == UNION {Image(map[o]) : o \in Objects}
-        Es == {e \in Vs \X Vs : \E o \in Objects :
+    LET Vs == UNION {Image(map[o]) : o \in Objects} \* Vertices
+        Es == {e \in Vs \X Vs : \E o \in Objects : \* Edges
             LET s == map[o] IN \E i \in DOMAIN s :
                 \/  /\ i # Len(s)
                     /\ s[i] = e[1]
                     /\ s[i+1] = e[2]
-                \/  /\ o \in AccessedBy(e[2])  
+                \/  /\ o \in AccessedBy(e[2])
                     /\ s[i] = e[1]
                     /\ e[2] \notin Image(s) }
     IN <<Vs, Es>>
@@ -150,8 +148,8 @@ GlobalMap(gs) ==
 (*     2)  For each object, all replicas agree on a total order of commands; *)
 (*     3)  The global object-commands map is acyclic.                      *)
 (***************************************************************************)
-Correctness(gs) == 
-    LET replicas == DOMAIN gs 
+Correctness(gs) ==
+    LET replicas == DOMAIN gs
     IN  /\ \A r \in replicas : WellFormed(gs[r])
         /\ \A o \in Objects : \A r1,r2 \in replicas :
             LET s1 == gs[r1][o]
@@ -159,7 +157,27 @@ Correctness(gs) ==
             IN Prefix(s1,s2) \/ Prefix(s2,s1)
         /\  \neg HasCycle(DependencyGraph(GlobalMap(gs)))
 
+(***************************************************************************)
+(* A temporal specification.                                               *)
+(***************************************************************************)
+CONSTANT Replica
+
+VARIABLES replicaState
+
+TypeInvariant ==
+    replicaState \in [Replica -> [Objects -> Seq(Commands)]]
+    
+Init == replicaState = [r \in Replica |-> [o \in Objects |-> <<>>]]
+
+Next == \E c \in Commands, o \in Objects, r \in Replica :
+    /\  o \in AccessedBy(c)
+    /\  replicaState' = [replicaState EXCEPT ![r] =
+            [@ EXCEPT ![o] = Append(@,c)]]
+    /\  Correctness(replicaState)'
+    
+Spec == Init /\ [][Next]_replicaState
+
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 16:30:54 EDT 2016 by nano
+\* Last modified Mon Jun 27 11:12:44 EDT 2016 by nano
 \* Created Mon Jun 06 14:59:29 EDT 2016 by nano

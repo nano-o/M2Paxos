@@ -2,7 +2,11 @@
 
 EXTENDS Objects, Maps, SequenceUtils, Integers, FiniteSets, TLC
 
-C == INSTANCE Correctness
+(***************************************************************************)
+(* We do not use the temporal part of the Correctness module, therefore    *)
+(* the substitutions below are just there to make the TLA+ toolbox happy.  *)
+(***************************************************************************)
+C == INSTANCE Correctness WITH Replica <- {}, replicaState <- {}
 
 (***************************************************************************)
 (* In this module we specify an algorithm describing how M2Paxos uses      *)
@@ -124,7 +128,7 @@ Acquire(objs) ==
 (***************************************************************************)
 Exec(c) == \E l \in ActiveLeases :
     /\ AccessedBy(c) \subseteq LeaseObjects(l)
-    \* Choose one NotACommand instance per accessed object and update it.
+    \* Choose one free instance per accessed object and update it.
     /\ \E is \in [AccessedBy(c) -> Instances] :
         /\ \A o \in AccessedBy(c) : instances[o][is[o]] = NotACommand
         /\ instances' = [o \in Objects |->
@@ -152,5 +156,5 @@ THEOREM Spec => []Safety
 
 =============================================================================
 \* Modification History
-\* Last modified Fri Jun 24 15:50:22 EDT 2016 by nano
+\* Last modified Mon Jun 27 10:48:11 EDT 2016 by nano
 \* Created Tue Jun 07 09:31:03 EDT 2016 by nano
